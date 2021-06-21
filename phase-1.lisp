@@ -200,17 +200,16 @@ line of the WEB file."
 input-state object or a lexer-state object; it is the former only during the
 low-level process of change file merging."
   (format *error-output* "! ~?~%" control arguments)
-  (flet ((report-input-state ()
-           (let ((input (lexer-state-input-state state)))
-             (format *error-output* "  In line ~D of ~:[WEB~;change~] file"
-                                    (input-state-line input)
-                                    (input-state-changingp input)))))
+  (flet ((report-input-state (input)
+           (format *error-output* "  In line ~D of ~:[WEB~;change~] file"
+                                  (input-state-line input)
+                                  (input-state-changingp input))))
     (cond ((lexer-state-p state)
            (cond ((lexer-state-in-module-name-p state)
                   (format *error-output* "  In section name <~A>."
                                          (module-name (lexer-state-module state))))
                  (t
-                  (report-input-state)
+                  (report-input-state (lexer-state-input-state state))
                   ;; We don't need to add a line break after printing the
                   ;; buffer, because next-line-file always adds #\Newline to the
                   ;; end of every line.
@@ -219,7 +218,7 @@ low-level process of change file merging."
                     (write-char #\Space *error-output*))
                   (write-char #\^ *error-output*))))
           (t
-           (report-input-state)
+           (report-input-state state)
            (write-char #\. *error-output*))))
   (terpri *error-output*))
 
