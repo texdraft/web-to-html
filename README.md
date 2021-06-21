@@ -21,7 +21,7 @@ Now you have the program loaded. The entry point for Phase 1 is the [`Phase-1`](
 (Phase-1 WEB-file [change-file])
 ```
 
-where *WEB-file* and *change-file* are streams. By default, *change-file* is `(make-string-input-stream "")`, i.e., an empty stream. An example usage would be
+where `WEB-file` and `change-file` are streams. By default, `change-file` is `(make-string-input-stream "")`, i.e., an empty stream. An example usage would be
 
 ```
 (with-open-file (input "tex.web")
