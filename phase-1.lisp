@@ -1016,5 +1016,3 @@ low-level process of change file merging."
                        ;; dropped.
                        (setf (module-name-tokens module) (nreverse (clear-lexer-state lexer)))
                        (input-error lexer "New section in module name.")))))))
-
-(Phase-1 (open "tex.web"))
