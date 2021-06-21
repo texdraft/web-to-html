@@ -964,11 +964,11 @@ low-level process of change file merging."
       (loop do ; until start of section or end of file
         (cond ((char= c #\@)
                (setf c (next-character lexer))
-                 (cond ((char= c #\@)
-                        (write-char #\@ limbo))
-                       ((or (member c '(#\Space #\Tab #\Newline) :test #'char=)
-                            (char= c #\*))
-                        (return))))
+               (cond ((char= c #\@)
+                      (write-char #\@ limbo))
+                     ((or (member c '(#\Space #\Tab #\Newline) :test #'char=)
+                          (char= c #\*))
+                      (return))))
               (t
                (write-char c limbo)))
         (setf c (next-character lexer)))
