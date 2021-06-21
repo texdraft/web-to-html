@@ -1,7 +1,7 @@
 # web-to-html
 Conversion of Knuth's `WEB` to HTML.
 
-Currently only &ldquo;Phase 1&rdquo; (see a [comment I wrote elsewhere]([comment](https://github.com/shreevatsa/webWEB/discussions/1#discussioncomment-856044))) is implemented. In this phase, the `WEB` file is fully read and split up into tokens.
+Currently only &ldquo;Phase 1&rdquo; (see a [comment I wrote elsewhere](https://github.com/shreevatsa/webWEB/discussions/1#discussioncomment-856044)) is implemented. In this phase, the `WEB` file is fully read and split up into tokens.
 
 # How to use it
 
@@ -55,3 +55,4 @@ Here are some things you might notice about the code:
 - I use `defstruct` instead of `defclass`. My rationale is that `defclass` is best used when the full facilities of CLOS are desired, such as inheritance (although `defstruct` can do this), generic functions, and the method combination; `defstruct` should be used for what is called &ldquo;Plain Old Data&rdquo; in C++. For semantic analysis and HTML generation, CLOS will be used.
 - Comments use the [&ldquo;incorrect&rdquo; quotation marks](https://www.cl.cam.ac.uk/~mgk25/ucs/quotes.html) <code>&#x0060;&#x0060;</code> and `''`. I would just write `“` and `”`, but I've decided to make the program Unicode-agnostic, and I can't bear the sight of `"`.
 - The condition system isn't used for errors in Phase 1. Eventually there will be a whole heirarchy of condition types, but for now errors are simply reported.
+- There is a mysterious `:long-distance` token `type`, apparently corresponding to an `@n` control code. This is intended to be used to specify the section in which an identifier should be identified, in case it is ambiguous.
