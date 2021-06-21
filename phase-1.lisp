@@ -318,7 +318,7 @@ low-level process of change file merging."
         (setf c (next-character lexer)))
       (case c
         ((#\@)
-         (control-code lexer)) ; maybe yield to read-TeX
+         (control-code lexer))
         ((#\})
          (input-error lexer "Spurious end of comment."))
         ((#\{)
