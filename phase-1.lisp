@@ -603,8 +603,10 @@ low-level process of change file merging."
                                 :origin (capture-origin lexer)
                                 :content t)) ; indicate named module
                   (if (and (> length 3)
-                           (string= (subseq name (- length 3) length)
-                                    "..."))
+                           (char= #\.
+                                  (schar name (- length 1))
+                                  (schar name (- length 2))
+                                  (schar name (- length 3))))
                       (contribute lexer
                                   :type :module-name
                                   :origin origin
