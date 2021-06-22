@@ -15,7 +15,7 @@ First, download the project into a place where ASDF can see it (such as `~/commo
 (in-package :web-to-html)
 ```
 
-Now you have the program loaded. The entry point for Phase 1 is the [`Phase-1`](https://github.com/texdraft/web-to-html/blob/main/phase-1.lisp#L980) function, which has the following syntax:
+Now you have the program loaded. The entry point for Phase 1 is the [`Phase-1`](https://github.com/texdraft/web-to-html/blob/main/phase-1.lisp#L973) function, which has the following syntax:
 
 ```
 (Phase-1 WEB-file [change-file])
