@@ -357,6 +357,9 @@ low-level process of change file merging."
         (c (next-character lexer)))
     (flet ((finish-portion ()
              (let ((text (get-output-stream-string portion)))
+               ;; We can get an empty :TeX-portion if the input file ends during
+               ;; the execution of control-code or just after finish-portion is
+               ;; called.
                (when (> (length text) 0) ; don't add empty :TeX-portions
                  (contribute lexer
                              :type :TeX-portion
