@@ -18,15 +18,9 @@
   (changedp nil :type boolean) ; was this section altered in a change file?
   (starredp nil :type boolean) ; did the section begin with @*?
   (starred-name nil :type (or string null)) ; text from @* to period
-  (text nil :type list) ; list of tokens
-
-  ;; The has-Pascal-part-p slot is true if a module name or @p appeared in the
-  ;; section (in a valid location, that is). We need this because sections
-  ;; without Pascal parts would not otherwise be visited/seen by Phase 2, so any
-  ;; definitions wouldn't be installed.
-  (has-Pascal-part-p nil :type boolean)
-
-  (end-TeX nil :type list)) ; points to segment of token list following TeX part
+  (TeX-part nil :type list) ; list of tokens
+  (definition-part nil :type list) ; ditto
+  (Pascal-part nil :type list)) ; ditto
 
 (deftype token-type-type ()
   '(member nil ; for malformed text
@@ -231,10 +225,6 @@ will be added."
               (setf node module)))
         node))
 
-    (defun add-unnamed (number)
-      "Add a definition of the unnamed module."
-      (push number (module-definitions unnamed-module)))
-
     (defun lookup-prefix (prefix)
       "Search for a module, given a prefix of its name."
       (let ((node root)
@@ -258,8 +248,16 @@ will be added."
           (error "Ambiguous prefix."))
         extension)))
 
+  (defun add-unnamed (number)
+    "Add a definition of the unnamed module."
+    (push number (module-definitions unnamed-module)))
+
+  (defun get-unnamed ()
+    "Get the unnamed module."
+    unnamed-module)
+
   (defun map-modules (function)
-    "Call a given function once for every module."
+    "Call a given function once for every named module."
     (labels ((do-module (node)
                (when (module-upper-link node)
                  (do-module (module-upper-link node)))

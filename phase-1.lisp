@@ -167,8 +167,11 @@ line of the WEB file."
   (buffer nil :type (or string null)) ; text of line or module name; initially nil
   (position 0 :type fixnum) ; current place in line or module name
 
-  ;; The contributions are stored in reverse order as the list is being built.
-  (contributions (list) :type list) ; destination for tokens being consumed
+  ;; Contributions are stored in reverse order as the lists are being built.
+  (TeX-part (list) :type list)
+  (definition-part (list) :type list)
+  (Pascal-part (list) :type list)
+  (name-tokens (list) :type list)
   (balance 0 :type fixnum) ; number of unmatched left braces in TeX text
   (in-comment-p nil :type boolean) ; are we currently reading a comment?
   (in-inline-code-p nil :type boolean) ; are we reading inline code?
@@ -224,16 +227,22 @@ low-level process of change file merging."
 
 (defun clear-lexer-state (lexer)
   "Empty a lexer-state object, returning the tokens it collected."
-  (prog1 (lexer-state-contributions lexer)
-         (setf (lexer-state-contributions lexer) (list)
-               (lexer-state-in-comment-p lexer) nil
-               ;; The in-module-name-p slot need not be reset. (In fact, it
-               ;; shouldn't be, because Phase-1 might call input-error after
-               ;; this function.)
-               (lexer-state-in-inline-code-p lexer) nil
-               (lexer-state-in-TeX-part-p lexer) nil
-               (lexer-state-in-definition-part-p lexer) nil
-               (lexer-state-in-Pascal-part-p lexer) nil)))
+  (multiple-value-prog1 (if (lexer-state-in-module-name-p lexer)
+                            (nreverse (lexer-state-name-tokens lexer))
+                            (values (nreverse (lexer-state-TeX-part lexer))
+                                    (nreverse (lexer-state-definition-part lexer))
+                                    (nreverse (lexer-state-Pascal-part lexer))))
+                        (setf (lexer-state-TeX-part lexer) (list)
+                              (lexer-state-definition-part lexer) (list)
+                              (lexer-state-Pascal-part lexer) (list)
+                              (lexer-state-in-comment-p lexer) nil
+                              ;; The in-module-name-p slot need not be reset.
+                              ;; (In fact, it shouldn't be, because Phase-1
+                              ;; might call input-error after this function.)
+                              (lexer-state-in-inline-code-p lexer) nil
+                              (lexer-state-in-TeX-part-p lexer) nil
+                              (lexer-state-in-definition-part-p lexer) nil
+                              (lexer-state-in-Pascal-part-p lexer) nil)))
 
 (defun initialize-lexer-state (input next-character previous-character)
   (make-lexer-state :input-state input
@@ -296,10 +305,17 @@ low-level process of change file merging."
                    :from-change-file-p (input-state-changingp (lexer-state-input-state lexer)))))
 
 (defun contribute (lexer &key type origin content)
-  (push (make-token :type type
-                    :origin origin
-                    :content content)
-        (lexer-state-contributions lexer)))
+  (let ((token (make-token :type type
+                           :origin origin
+                           :content content)))
+    (cond ((lexer-state-in-TeX-part-p lexer)
+           (push token (lexer-state-TeX-part lexer)))
+          ((lexer-state-in-definition-part-p lexer)
+           (push token (lexer-state-definition-part lexer)))
+          ((lexer-state-in-Pascal-part-p lexer)
+           (push token (lexer-state-Pascal-part lexer)))
+          (t
+           (push token (lexer-state-name-tokens lexer))))))
 
 ;; Unlike in TANGLE, tokens aren't read one-at-a-time. Instead, we gather them
 ;; until a big change in state happens---namely, the beginning of a section or
@@ -496,8 +512,7 @@ low-level process of change file merging."
              (lexer-state-in-TeX-part-p lexer) nil)
        (contribute lexer
                    :type :begin-Pascal
-                   :origin (capture-origin lexer))
-       (setf (section-has-Pascal-part-p (get-current-section)) t))
+                   :origin (capture-origin lexer)))
       ((#\{)
        (contribute lexer
                    :type :begin-meta-comment
@@ -580,13 +595,13 @@ low-level process of change file merging."
                     (setf (lexer-state-in-inline-code-p lexer) nil))
                   (when (or (lexer-state-in-TeX-part-p lexer)
                             (lexer-state-in-definition-part-p lexer))
+                    (setf (lexer-state-in-TeX-part-p lexer) nil
+                          (lexer-state-in-definition-part-p lexer) nil
+                          (lexer-state-in-Pascal-part-p lexer) t)
                     (contribute lexer
                                 :type :begin-Pascal
                                 :origin (capture-origin lexer)
-                                :content t) ; indicate named module
-                    (setf (lexer-state-in-TeX-part-p lexer) nil
-                          (lexer-state-in-definition-part-p lexer) nil
-                          (lexer-state-in-Pascal-part-p lexer) t))
+                                :content t)) ; indicate named module
                   (if (and (> length 3)
                            (string= (subseq name (- length 3) length)
                                     "..."))
@@ -597,8 +612,7 @@ low-level process of change file merging."
                       (contribute lexer
                                   :type :module-name
                                   :origin origin
-                                  :content (lookup-module name)))
-                  (setf (section-has-Pascal-part-p (get-current-section)) t)))
+                                  :content (lookup-module name)))))
                ((char-equal c #\n)
                 (let* ((text (control-text nil))
                        (value (parse-integer text :junk-allowed t))
@@ -895,51 +909,30 @@ low-level process of change file merging."
 ;; return after scanning only one section. Instead it does its thing until the
 ;; end of input, by means of a tail call.
 (defun scan-section (lexer starredp)
-  (let ((section (make-section :starredp starredp
-                               :number (get-section-count))))
+  (let ((section (make-section :starredp starredp)))
     (add-section section)
+    (setf (section-number section) (get-section-count))
     (when starredp
       (setf (section-starred-name section) (with-output-to-string (text)
                                              (loop for c := (next-character lexer)
                                                    while (char/= c #\.)
                                                    do (write-char c text)))))
     (flet ((finish-section ()
-             (setf (section-text section) (nreverse (clear-lexer-state lexer)))
-             (loop for tail on (section-text section)
-                   until (member (token-type (first tail))
-                                 '(:begin-Pascal
-                                   :begin-definition
-                                   :begin-format)
-                                 :test #'eq)
-                   finally (setf (section-end-TeX section) tail))
-             ;; Super clunky parsing logic, sorry. (An alternative would be to
-             ;; perform an additional pass over all the gathered sections to
-             ;; update the module data; macros could be defined at the same
-             ;; time. You could also do it during input, but this would
-             ;; necessitate introducing more state into the lexer or require a
-             ;; restructuring of Phase 1's logic in general.)
-             (when (section-end-TeX section)
-               (loop for module-tail on (section-end-TeX section)
-                     until (eq (token-type (first module-tail)) :begin-Pascal)
-                     finally (if (and (not (null module-tail))
-                                      (eq (token-content (first module-tail)) t))
-                                 (let ((module-name (second module-tail))
-                                       (next (third module-tail)))
-                                   (assert (eq (token-type module-name)
-                                               :module-name))
-                                   (when (eq (token-type next) :plus)
-                                     (setf next (fourth module-tail)))
-                                   (cond ((member (token-type next)
-                                                  '(:equivalence-sign
-                                                    :equals)
-                                                  :test #'eq)
-                                          (push (get-section-count)
-                                                (module-definitions (token-content module-name))))
-                                         (t
-                                          (input-error lexer
-                                                       "Pascal text flushed, = ~
-                                                        sign is missing."))))
-                                 (add-unnamed (get-section-count)))))))
+             (multiple-value-bind (TeX-part definition-part Pascal-part)
+                                  (clear-lexer-state lexer)
+               (setf (section-TeX-part section) TeX-part
+                     (section-definition-part section) definition-part
+                     (section-Pascal-part section) Pascal-part)
+               (when (not (null Pascal-part))
+                 (cond ((eq (token-content (first Pascal-part)) t)
+                        (assert (and (token-p (second Pascal-part))
+                                     (eq (token-type (second Pascal-part))
+                                         :module-name)))
+                        (let ((module (token-content (second Pascal-part))))
+                          (push (section-number section)
+                                (module-definitions module))))
+                       (t
+                        (add-unnamed (section-number section))))))))
       (setf (lexer-state-in-TeX-part-p lexer) t)
       (handler-case (read-text lexer)
         (input-has-ended (condition)
@@ -979,7 +972,9 @@ low-level process of change file merging."
 
 (defun Phase-1 (WEB-file &optional (change-file (make-string-input-stream "")))
   (scan-WEB WEB-file change-file)
-  ;; Now tokenize the module names.
+  ;; Now tokenize the module names and nreverse the lists of definitions.
+  (let ((unnamed (get-unnamed)))
+    (setf (module-definitions unnamed) (nreverse (module-definitions unnamed))))
   (map-modules (lambda (module)
                  (setf (module-definitions module) (nreverse (module-definitions module)))
                  (let* ((name (module-name module))
@@ -1010,10 +1005,10 @@ low-level process of change file merging."
                          (input-error lexer "Input ended in inline code.")
                          (contribute lexer
                                      :type :end-inline-code))
-                       (setf (module-name-tokens module) (nreverse (clear-lexer-state lexer))))
+                       (setf (module-name-tokens module) (clear-lexer-state lexer)))
                      (new-section (condition) ; i.e., we found @* or @space
                        (declare (ignore condition))
                        ;; All tokens after the unexpected control code will be
                        ;; dropped.
-                       (setf (module-name-tokens module) (nreverse (clear-lexer-state lexer)))
+                       (setf (module-name-tokens module) (clear-lexer-state lexer))
                        (input-error lexer "New section in module name.")))))))
