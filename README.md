@@ -38,13 +38,15 @@ After executing the above expression, you can use the following functions to ins
 - [`(module-definitions module)`](https://github.com/texdraft/web-to-html/blob/main/common.lisp#L8) returns a list of section numbers where the given module is defined.
 - [`(map-modules function)`](https://github.com/texdraft/web-to-html/blob/main/common.lisp#L261) calls the `function` on each module. They are traversed in tree order.
 
-To get the full text of a module, you might run
+To get the full text of a module `module`, you might run
 
 ```lisp
 (let ((definitions (module-definitions module)))
   (loop for definition in definitions
-        appending (section-text (get-nth-section definition))))
+        appending (section-Pascal-part (get-nth-section definition))))
 ```
+
+Note that this will include `:begin-Pascal` tokens and the tokens for the initial “`<Module name>=`”. Also, you probably want to set `*print-level*` to a low value if you're working with a large program like TeX, since the content `:module-name` tokens often includes large segments of the module name tree.
 
 # Weird stuff
 
