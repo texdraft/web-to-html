@@ -366,8 +366,7 @@ low-level process of change file merging."
                        (lambda (condition)
                          (declare (ignore condition))
                          (when (expecting-TeX-p lexer)
-                           (finish-portion))
-                         nil)))
+                           (finish-portion)))))
         (loop while (expecting-TeX-p lexer) do
           (case c
             ((#\|)
