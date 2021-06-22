@@ -925,11 +925,13 @@ low-level process of change file merging."
                (setf (section-TeX-part section) TeX-part
                      (section-definition-part section) definition-part
                      (section-Pascal-part section) Pascal-part)
-               (when (not (null Pascal-part))
+               (unless (null Pascal-part)
                  (cond ((eq (token-content (first Pascal-part)) t)
                         (assert (and (token-p (second Pascal-part))
                                      (eq (token-type (second Pascal-part))
                                          :module-name)))
+                        ;; Note: We don't check the tokens following the module
+                        ;; name for validity here (see section 176 of TANGLE).
                         (let ((module (token-content (second Pascal-part))))
                           (push (section-number section)
                                 (module-definitions module))))
@@ -974,6 +976,8 @@ low-level process of change file merging."
 
 (defun Phase-1 (WEB-file &optional (change-file (make-string-input-stream "")))
   (scan-WEB WEB-file change-file)
+  (when (null (module-definitions (get-unnamed-module)))
+    (cerror "Keep going" "No output was specified."))
   ;; Now tokenize the module names and nreverse the lists of definitions.
   (let ((unnamed (get-unnamed)))
     (setf (module-definitions unnamed) (nreverse (module-definitions unnamed))))
