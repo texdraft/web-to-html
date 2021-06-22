@@ -138,7 +138,7 @@
 (let* ((maximum-strings 3000) ; this is the value of max_names in TANGLE
        (check-sum-prime #o3777777667)
        (strings (make-array maximum-strings))
-       (string-count 0)
+       (string-count 256)
        (string-table (make-hash-table :test #'equal))
        (check-sum 271828))
   (defun lookup-string (string)
