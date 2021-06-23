@@ -110,7 +110,7 @@
 (defstruct token
   (type nil :type token-type-type)
   (origin nil :type (or origin null)) ; nil for tokens inserted in Phase 2
-  (content nil :type (or null ; keywords, punctuators, :begin-Pascal for unnamed
+  (content nil :type (or null ; punctuators, :begin-Pascal for unnamed
                               ; modules, :begin-comment, :end-comment,
                               ; :begin-inline-code, :end-inline-code, :indent,
                               ; :dedent, :line-break, :dollar-sign
@@ -120,8 +120,6 @@
                          floating-point-literal ; floating-point numbers
                          identifier ; identifiers
                          (eql t) ; :begin-Pascal for named modules
-                         list ; :macro-parameter for hacky case in Phase 2
-                              ; (see begin-parametric-macro)
                          module)) ; module references
   (extra)) ; filled in by Phase 2
 
