@@ -976,7 +976,7 @@ low-level process of change file merging."
 
 (defun Phase-1 (WEB-file &optional (change-file (make-string-input-stream "")))
   (scan-WEB WEB-file change-file)
-  (when (null (module-definitions (get-unnamed-module)))
+  (when (null (module-definitions (get-unnamed)))
     (cerror "Keep going" "No output was specified."))
   ;; Now tokenize the module names and nreverse the lists of definitions.
   (let ((unnamed (get-unnamed)))
