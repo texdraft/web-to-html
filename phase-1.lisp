@@ -510,9 +510,7 @@ low-level process of change file merging."
        (setf (lexer-state-in-Pascal-part-p lexer) t
              (lexer-state-in-definition-part-p lexer) nil
              (lexer-state-in-TeX-part-p lexer) nil)
-       (contribute lexer
-                   :type :begin-Pascal
-                   :origin (capture-origin lexer)))
+       (push (get-section-count) (module-definitions (get-unnamed))))
       ((#\{)
        (contribute lexer
                    :type :begin-meta-comment
@@ -589,32 +587,29 @@ low-level process of change file merging."
          (cond ((char= c #\<)
                 (let* ((origin (capture-origin lexer))
                        (name (control-text t))
-                       (length (length name)))
+                       (length (length name))
+                       (module (if (and (> length 3)
+                                        (char= #\.
+                                               (schar name (- length 1))
+                                               (schar name (- length 2))
+                                               (schar name (- length 3))))
+                                   (lookup-prefix (subseq name 0 (- length 3)))
+                                   (lookup-module name))))
                   (when (lexer-state-in-inline-code-p lexer)
                     (input-error lexer "Module name in inline code.")
                     (setf (lexer-state-in-inline-code-p lexer) nil))
-                  (when (or (lexer-state-in-TeX-part-p lexer)
-                            (lexer-state-in-definition-part-p lexer))
-                    (setf (lexer-state-in-TeX-part-p lexer) nil
-                          (lexer-state-in-definition-part-p lexer) nil
-                          (lexer-state-in-Pascal-part-p lexer) t)
-                    (contribute lexer
-                                :type :begin-Pascal
-                                :origin (capture-origin lexer)
-                                :content t)) ; indicate named module
-                  (if (and (> length 3)
-                           (char= #\.
-                                  (schar name (- length 1))
-                                  (schar name (- length 2))
-                                  (schar name (- length 3))))
-                      (contribute lexer
-                                  :type :module-name
-                                  :origin origin
-                                  :content (lookup-prefix (subseq name 0 (- length 3))))
-                      (contribute lexer
-                                  :type :module-name
-                                  :origin origin
-                                  :content (lookup-module name)))))
+                  (cond ((or (lexer-state-in-TeX-part-p lexer)
+                             (lexer-state-in-definition-part-p lexer))
+                         (setf (lexer-state-in-TeX-part-p lexer) nil
+                               (lexer-state-in-definition-part-p lexer) nil
+                               (lexer-state-in-Pascal-part-p lexer) t
+                               (section-module (get-current-section)) module)
+                         (push (get-section-count) (module-definitions module)))
+                        (t
+                         (contribute lexer
+                                     :type :module-name
+                                     :origin origin
+                                     :content module)))))
                ((char-equal c #\n)
                 (let* ((text (control-text nil))
                        (value (parse-integer text :junk-allowed t))
@@ -922,21 +917,20 @@ low-level process of change file merging."
     (flet ((finish-section ()
              (multiple-value-bind (TeX-part definition-part Pascal-part)
                                   (clear-lexer-state lexer)
+               (when (section-module section)
+                 ;; Get rid of the =/==/+= that followed the module name.
+                 (let ((token (pop Pascal-part)))
+                   (loop while (and token (eq (token-type token) :plus)) do
+                     (setf token (pop Pascal-part)))
+                   (unless (and token
+                                (member (token-type token)
+                                        '(:equals :equivalence-sign)
+                                        :test #'eq))
+                     (input-error lexer "= sign missing after module name."))
+                   (pop Pascal-part)))
                (setf (section-TeX-part section) TeX-part
                      (section-definition-part section) definition-part
-                     (section-Pascal-part section) Pascal-part)
-               (unless (null Pascal-part)
-                 (cond ((eq (token-content (first Pascal-part)) t)
-                        (assert (and (token-p (second Pascal-part))
-                                     (eq (token-type (second Pascal-part))
-                                         :module-name)))
-                        ;; Note: We don't check the tokens following the module
-                        ;; name for validity here (see section 176 of TANGLE).
-                        (let ((module (token-content (second Pascal-part))))
-                          (push (section-number section)
-                                (module-definitions module))))
-                       (t
-                        (add-unnamed (section-number section))))))))
+                     (section-Pascal-part section) Pascal-part))))
       (setf (lexer-state-in-TeX-part-p lexer) t)
       (handler-case (read-text lexer)
         (input-has-ended (condition)

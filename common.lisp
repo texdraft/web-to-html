@@ -20,7 +20,8 @@
   (starred-name nil :type (or string null)) ; text from @* to period
   (TeX-part nil :type list) ; list of tokens
   (definition-part nil :type list) ; ditto
-  (Pascal-part nil :type list)) ; ditto
+  (Pascal-part nil :type list) ; ditto
+  (module nil :type (or module null))) ; nil if unnamed
 
 (deftype token-type-type ()
   '(member nil ; for malformed text
@@ -87,7 +88,6 @@
            :end-inline-code ; end of code in TeX text
            :begin-definition ; beginning of one definition (@d)
            :begin-format ; beginning of one format specification (@f)
-           :begin-Pascal ; @<...@>== or @p or text of definition
            ;; The next tokens are inserted by Phase 2.
            :line-break ; start new row of table on output
            :indent ; increase indentation level
@@ -119,7 +119,6 @@
                          string ; control text, :Pascal-string, :TeX-portion
                          floating-point-literal ; floating-point numbers
                          identifier ; identifiers
-                         (eql t) ; :begin-Pascal for named modules
                          module)) ; module references
   (extra)) ; filled in by Phase 2
 
