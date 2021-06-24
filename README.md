@@ -30,13 +30,13 @@ where `WEB-file` and `change-file` are streams. By default, `change-file` is `(m
 
 After executing the above expression, you can use the following functions to inspect the collected data:
 
-- [`(get-nth-section n)`](https://github.com/texdraft/web-to-html/blob/main/common.lisp#L279) returns the representation of the `n`th section.
-- [`(section-text section)`](https://github.com/texdraft/web-to-html/blob/main/common.lisp#L16) returns the token list associated with a section object.
-- [`(lookup-module name)`](https://github.com/texdraft/web-to-html/blob/main/common.lisp#L206) returns the `module` object corresponding to the module named `name`.
-- [`(lookup-prefix prefix)`](https://github.com/texdraft/web-to-html/blob/main/common.lisp#L238) returns the `module` object uniquely identified by the given `prefix`.
-- [`(module-name module)`](https://github.com/texdraft/web-to-html/blob/main/common.lisp#L8) returns the name associated with a given `module` object.
-- [`(module-definitions module)`](https://github.com/texdraft/web-to-html/blob/main/common.lisp#L8) returns a list of section numbers where the given module is defined.
-- [`(map-modules function)`](https://github.com/texdraft/web-to-html/blob/main/common.lisp#L261) calls the `function` on each module. They are traversed in tree order.
+- `(get-nth-section n)` returns the representation of the `n`th section.
+- `(section-text section)` returns the token list associated with a section object.
+- `(lookup-module name)` returns the `module` object corresponding to the module named `name`.
+- `(lookup-prefix prefix)` returns the `module` object uniquely identified by the given `prefix` (don't include “`...`”).
+- `(module-name module)` returns the name associated with a given `module` object.
+- `(module-definitions module)` returns a list of section numbers where the given module is defined.
+- `(map-modules function)` calls the `function` on each module. They are traversed in tree order, but you shouldn't depend on this.
 
 To get the full text of a module `module`, you might run
 
@@ -45,8 +45,6 @@ To get the full text of a module `module`, you might run
   (loop for definition in definitions
         appending (section-Pascal-part (get-nth-section definition))))
 ```
-
-Note that this will include `:begin-Pascal` tokens and the tokens for the initial “`<Module name>=`”. Also, you probably want to set `*print-level*` to a low value if you're working with a large program like TeX, since the content `:module-name` tokens often includes large segments of the module name tree.
 
 # Weird stuff
 
