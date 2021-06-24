@@ -446,10 +446,7 @@ low-level process of change file merging."
                           :origin (capture-origin lexer)
                           :content "@"))
              (t
-              (input-error lexer "Random @@ in Pascal code.")
-              (contribute lexer
-                          :type nil
-                          :origin (capture-origin lexer)))))
+              (input-error lexer "Random @@ in Pascal code."))))
       ((#\')
        (get-octal lexer))
       ((#\")
