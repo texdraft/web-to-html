@@ -78,7 +78,7 @@ search is unsuccessful and the third argument is false, an error is signaled."
 
 (defun install-label (parser value)
   "Update the current environment by adding a new label, returning this object."
-  ;; We don't check for duplicate labels declarations.
+  ;; We don't check for duplicates.
   (let* ((environment (parser-state-environment parser))
          (label (make-instance 'label :value value
                                :environment environment)))
@@ -186,8 +186,6 @@ search is unsuccessful and the third argument is false, an error is signaled."
                                :pseudo-semicolon
                                :thin-space
                                :join
-                               :indent
-                               :dedent
                                :don\'t-index
                                :do-index
                                :line-break
