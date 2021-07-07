@@ -122,8 +122,7 @@
   '(member nil ; no line break
            :normal ; yes line break
            :indent ; break line and increase indentation
-           :dedent ; break line and decrease indentation
-           :outdent)) ; :dedent until next line break
+           :dedent)) ; break line and decrease indentation
 
 (defstruct extra
   "Holds additional information about a token."
