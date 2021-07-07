@@ -1,4 +1,6 @@
 ;;;; Phase 2 processing (parsing/semantication).
+;; (I got the term ``semantication'' from Bernard S. Greenburg's paper about the
+;; Multics Maclisp compiler, accessible at https://www.multicians.org/lcp.html.)
 (in-package :WEB-to-HTML) ; depends on common.lisp and pascal.lisp
 
 (defstruct parser-state
