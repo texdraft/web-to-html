@@ -1178,14 +1178,12 @@ references are permitted in pointer types."
     (parse-statement parser)
     (setf token (get-next parser))
     (attach-line-break token :dedent :before)
-    (cond ((token-matches-p token "else")
-           (attach-line-break token :indent :after)
-           (parse-statement parser)
-           (setf token (get-next parser))
-           (attach-line-break token :dedent :before)
-           (put-back-token parser token))
-          (t
-           (put-back-token parser token)))))
+    (when (token-matches-p token "else")
+      (attach-line-break token :indent :after)
+      (parse-statement parser)
+      (setf token (get-next parser))
+      (attach-line-break token :dedent :before))
+    (put-back-token parser token)))
 
 ;; <case statement> ::=
 ;;   case <expression> of <case list element> { ; <case list element> } end
