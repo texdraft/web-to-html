@@ -1635,16 +1635,14 @@ expression."
     (identify-weird-routine "dispose")
     (identify-weird-routine "eof")
     (identify-weird-routine "eoln")
-    (identify-weird-routine "pack")
     (identify-weird-routine "read_ln")
     (identify-weird-routine "readln")
-    (identify-weird-routine "unpack")
     (identify-weird-routine "write")
     (identify-weird-routine "write_ln")
     (identify-weird-routine "writeln")
     ;; Currently the parser cares only about whether a routine has parameters,
-    ;; without regard for their specification. (This is why ``new'' is not
-    ;; considered ``weird''.)
+    ;; without regard for their specification. (This is why ``new'', ``pack'',
+    ;; and ``unpack'' are not considered ``weird''.)
     (identify-routine "abs" (list t))
     (identify-routine "arctan" (list t))
     (identify-routine "break" (list t))
@@ -1658,6 +1656,7 @@ expression."
     (identify-routine "ord" (list t))
     (identify-routine "new" (list t))
     (identify-routine "page" (list t))
+    (identify-routine "pack" (list t))
     (identify-routine "pred" (list t))
     (identify-routine "put" (list t))
     (identify-routine "read" (list t))
@@ -1669,7 +1668,8 @@ expression."
     (identify-routine "sqr" (list t))
     (identify-routine "sqrt" (list t))
     (identify-routine "succ" (list t))
-    (identify-routine "trunc" (list t))))
+    (identify-routine "trunc" (list t))
+    (identify-routine "unpack" (list t))))
 
 (defun install-reserved-words ()
   "Insert Pascal's reserved words into the symbol table."
