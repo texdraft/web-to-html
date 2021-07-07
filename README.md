@@ -1,7 +1,7 @@
 # web-to-html
 Conversion of Knuth's `WEB` to HTML.
 
-Currently only &ldquo;Phase 1&rdquo; (see a [comment I wrote elsewhere](https://github.com/shreevatsa/webWEB/discussions/1#discussioncomment-856044)) is implemented. In this phase, the `WEB` file is fully read and split up into tokens.
+Currently only &ldquo;Phase 1&rdquo; and &ldquo;Phase 2&rdquo; (see a [comment I wrote elsewhere](https://github.com/shreevatsa/webWEB/discussions/1#discussioncomment-856044)) are implemented.
 
 # How to use it
 
@@ -46,13 +46,13 @@ To get the full text of a module `module`, you might run
         appending (section-Pascal-part (get-nth-section definition))))
 ```
 
+Running Phase 2 is easier; all you need to do is evaluate `(Phase-2)`, provided that Phase 1 has already completed. However, most of Knuth's programs will need to be changed, because they have meta-comments (`@{`&hellip`@}`) that confuse Phase 2. For `WEAVE` and `TANGLE` it suffices to remove the reference to the “Compiler directives” module, and the `'BREAKPOINT'` comment in TeX's `debug_help` must also be removed.
+
 # Weird stuff
 
 Here are some things you might notice about the code:
 
 - There are no abbreviations, except when the abbreviation is a single character long. This is a stylistic preference.
-- A lot is unused; it is included in preparation of Phase 2 and Phase 3.
-- I use `defstruct` instead of `defclass`. My rationale is that `defclass` is best used when the full facilities of CLOS are desired, such as inheritance (although `defstruct` can do this), generic functions, and the method combination; `defstruct` should be used for what is called &ldquo;Plain Old Data&rdquo; in C++. For semantic analysis and HTML generation, CLOS will be used.
 - Comments use the [&ldquo;incorrect&rdquo; quotation marks](https://www.cl.cam.ac.uk/~mgk25/ucs/quotes.html) <code>&#x0060;&#x0060;</code> and `''`. I would just write `“` and `”`, but I've decided to make the program Unicode-agnostic, and I can't bear the sight of `"`.
 - The condition system isn't used for errors in Phase 1. Eventually there will be a whole heirarchy of condition types, but for now errors are simply reported.
 - There is a mysterious `:long-distance` token `type`, apparently corresponding to an `@n` control code. This is intended to be used to specify the section in which an identifier should be identified, in case it is ambiguous.

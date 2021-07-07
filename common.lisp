@@ -87,11 +87,7 @@
            :begin-inline-code ; start of code in TeX text
            :end-inline-code ; end of code in TeX text
            :begin-definition ; beginning of one definition (@d)
-           :begin-format ; beginning of one format specification (@f)
-           ;; The next tokens are inserted by Phase 2.
-           :line-break ; start new row of table on output
-           :indent ; increase indentation level
-           :dedent)) ; decrease indentation level
+           :begin-format)) ; beginning of one format specification (@f)
 
 (defstruct origin
   "Tells where something came from."
@@ -109,7 +105,7 @@
 
 (defstruct token
   (type nil :type token-type-type)
-  (origin nil :type (or origin null)) ; nil for tokens inserted in Phase 2
+  (origin nil :type origin)
   (content nil :type (or null ; punctuators, :begin-Pascal for unnamed
                               ; modules, :begin-comment, :end-comment,
                               ; :begin-inline-code, :end-inline-code, :indent,
@@ -120,7 +116,25 @@
                          floating-point-literal ; floating-point numbers
                          identifier ; identifiers
                          module)) ; module references
-  (extra)) ; filled in by Phase 2
+  (extra nil :type (or extra null)))
+
+(deftype line-break-type ()
+  '(member nil ; no line break
+           :normal ; yes line break
+           :indent ; break line and increase indentation
+           :dedent ; break line and decrease indentation
+           :outdent)) ; :dedent until next line break
+
+(defstruct extra
+  "Holds additional information about a token."
+  ;; The first three slots are used only for :identifier tokens.
+  (definingp nil :type boolean) ; is this a definition?
+  (declaringp nil :type boolean) ; is this a declaration?
+  (meanings (list) :type list) ; list of meaning objects
+  (label-status nil :type (or boolean
+                              label)) ; defined in pascal.lisp
+  (break-before nil :type line-break-type)
+  (break-after nil :type line-break-type))
 
 (defstruct identifier
   "Global information about a name."
@@ -292,46 +306,6 @@ will be added."
         (setf identifier (make-identifier :name name)
               (gethash name symbols) identifier))
       identifier)))
-
-(defun install-reserved-words ()
-  "Insert Pascal's reserved words into the symbol table."
-  (mapcar (lambda (name)
-            (setf (identifier-reservedp (lookup-identifier name)) t))
-          '("and"
-            "array"
-            "begin"
-            "case"
-            "const"
-            "div"
-            "do"
-            "downto"
-            "else"
-            "end"
-            "file"
-            "for"
-            "function"
-            "goto"
-            "if"
-            "in"
-            "label"
-            "mod"
-            "nil"
-            "not"
-            "of"
-            "or"
-            "packed"
-            "procedure"
-            "program"
-            "record"
-            "repeat"
-            "set"
-            "then"
-            "to"
-            "type"
-            "until"
-            "var"
-            "while"
-            "with")))
 
 ;;; Indexing.
 (defstruct cross-reference-datum

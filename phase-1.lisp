@@ -365,7 +365,9 @@ low-level process of change file merging."
                ((or (alpha-char-p c) (char= c #\_))
                 (get-identifier c lexer))
                (t
-                (get-punctuator c lexer))))))))
+                (get-punctuator c lexer)
+                (when (expecting-TeX-p lexer) ; a comment might begin
+                  (return))))))))) ; so we may have to yield to read-TeX
 
 (defun read-TeX (lexer)
   (let ((portion (make-string-output-stream))
@@ -381,6 +383,14 @@ low-level process of change file merging."
                              :type :TeX-portion
                              :origin origin
                              :content text)))))
+      ;; You might be wondering why the input-has-ended trap is necessary here
+      ;; but not in read-Pascal or its subroutines. The answer is that
+      ;; :TeX-portion tokens can span multiple lines, while Pascal tokens
+      ;; cannot, with the exception of module names (and there is a handler for
+      ;; input-has-ended in control-text as well). Thus the #\Newline inserted
+      ;; by next-line-file always terminates a Pascal token, and it will be
+      ;; encountered before reaching the end of the file, so input-has-ended
+      ;; will occur in Pascal text only at a token boundary.
       (handler-bind ((input-has-ended
                        (lambda (condition)
                          (declare (ignore condition))
@@ -414,6 +424,22 @@ low-level process of change file merging."
                     (return)) ; yield to read-Pascal
                    (t
                     (input-error lexer "Unbalanced right brace in TeX text."))))
+            ((#\*)
+             (setf c (next-character lexer))
+             (cond ((char= c #|(|# #\))
+                    (cond ((lexer-state-in-comment-p lexer)
+                           (setf (lexer-state-in-comment-p lexer) nil)
+                           (finish-portion)
+                           (contribute lexer
+                                       :type :end-comment
+                                       :origin (capture-origin lexer))
+                           (return)) ; yield to read-Pascal
+                          (t
+                           (write-char #\* portion)
+                           (previous-character lexer))))
+                   (t
+                    (write-char #\* portion)
+                    (previous-character lexer))))
             ((#\@)
              (finish-portion)
              (control-code lexer) ; a change in state might entail a ``yield'',
@@ -692,10 +718,11 @@ low-level process of change file merging."
         (exponent-sign :plus)
         (exponent-part 0))
     (when (char= c #\.)
-      (loop for c := (next-character lexer)
-            as d := (digit-char-p c)
+      (setf c (next-character lexer))
+      (loop for d := (digit-char-p c)
             while d
-            do (setf fractional-part (+ (* fractional-part 10) d)))
+            do (setf fractional-part (+ (* fractional-part 10) d)
+                     c (next-character lexer)))
       (when (char= c #\.) ; here we have something like ``0..100''
         (contribute lexer
                     :type :decimal-integer
@@ -726,9 +753,9 @@ low-level process of change file merging."
 (defun get-octal (lexer)
   (let ((accumulator 0))
     (loop for c := (next-character lexer)
-          as d := (digit-char-p c 8)
+          as d := (digit-char-p c #o10)
           while d
-          do (setf accumulator (+ (* accumulator 8) d)))
+          do (setf accumulator (+ (* accumulator #o10) d)))
     (previous-character lexer)
     (contribute lexer
                 :type :octal-integer
@@ -738,9 +765,9 @@ low-level process of change file merging."
 (defun get-hexadecimal (lexer)
   (let ((accumulator 0))
     (loop for c := (next-character lexer)
-          as d := (digit-char-p c 16)
+          as d := (digit-char-p c #x10)
           while d
-          do (setf accumulator (+ (* accumulator 16) d)))
+          do (setf accumulator (+ (* accumulator #x10) d)))
     (previous-character lexer)
     (contribute lexer
                 :type :hexadecimal-integer
@@ -816,10 +843,10 @@ low-level process of change file merging."
               (cond ((lexer-state-in-inline-code-p lexer)
                      (input-error lexer "You can't have a comment in inline code."))
                     (t
+                     (setf (lexer-state-in-comment-p lexer) t)
                      (contribute lexer
                                  :type :begin-comment
-                                 :origin (capture-origin lexer))
-                     (setf (lexer-state-in-comment-p lexer) t))))
+                                 :origin (capture-origin lexer)))))
              ((char= c #\.)
               (contribute lexer
                           :type :left-bracket
@@ -916,7 +943,7 @@ low-level process of change file merging."
                                   (clear-lexer-state lexer)
                (when (section-module section)
                  ;; Get rid of the =/==/+= that followed the module name.
-                 (let ((token (pop Pascal-part)))
+                 (let ((token (first Pascal-part)))
                    (loop while (and token (eq (token-type token) :plus)) do
                      (setf token (pop Pascal-part)))
                    (unless (and token
