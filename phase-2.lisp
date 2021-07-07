@@ -55,12 +55,11 @@ attempt is made to catch redefinition errors."
 search is unsuccessful and the third argument is false, an error is signaled."
   (labels ((find-meaning (environment)
              (cond ((not environment)
-                    (cond (allow-nonexistent
-                           nil)
-                          (t
-                           (Phase-2-error parser
-                                          "Undeclared identifier ``~A''."
-                                          (identifier-name identifier)))))
+                    (if allow-nonexistent
+                        nil
+                        (Phase-2-error parser
+                                       "Undeclared identifier ``~A''."
+                                       (identifier-name identifier))))
                    ((gethash identifier (environment-meanings environment)))
                    (t
                     (find-meaning (environment-outer environment))))))
