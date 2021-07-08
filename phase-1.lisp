@@ -426,7 +426,7 @@ low-level process of change file merging."
                     (input-error lexer "Unbalanced right brace in TeX text."))))
             ((#\*)
              (setf c (next-character lexer))
-             (cond ((char= c #|(|# #\))
+             (cond ((char= c #\))
                     (cond ((lexer-state-in-comment-p lexer)
                            (setf (lexer-state-in-comment-p lexer) nil)
                            (finish-portion)
