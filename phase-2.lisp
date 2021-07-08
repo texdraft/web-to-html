@@ -20,11 +20,11 @@
                               :argument))
   (backed-up nil :type list) ; tokens to be read again
   (next nil :type list) ; next definitions of current module
-  (name-stack (list) :type list) ; previous values of the name slot
-  (section-stack (list) :type list) ; previous values of the section slot
-  (text-stack (list) :type list) ; previous values of the text slot
-  (mode-stack (list) :type list) ; previous values of the mode slot
-  (next-stack (list) :type list)) ; previous values of next
+  (name-stack (list) :type list) ; previous values of the |name| slot
+  (section-stack (list) :type list) ; previous values of the |section| slot
+  (text-stack (list) :type list) ; previous values of the |text| slot
+  (mode-stack (list) :type list) ; previous values of the |mode| slot
+  (next-stack (list) :type list)) ; previous values of the |next| slot
 
 (defun Phase-2-error (parser control &rest arguments)
   "Report a problem during Phase 2. This function does not return."
@@ -270,7 +270,7 @@ search is unsuccessful and the third argument is false, an error is signaled."
                       (next))
                      ((and token
                            (eq (token-type token) :begin-comment))
-                      ;; Phase 1 guarantees that every :begin-comment is
+                      ;; Phase 1 guarantees that every |:begin-comment| is
                       ;; balanced, so we will not run out of tokens in the
                       ;; following loop.
                       (loop do (setf token (pop text))
@@ -288,7 +288,7 @@ search is unsuccessful and the third argument is false, an error is signaled."
                                                 (eq (token-type token)
                                                     :begin-format))))
                             collect token)
-                      (push token text))) ; put the :begin-whatever back
+                      (push token text))) ; put the |:begin-whatever| back
              (scan-numeric (identifier)
                (let ((value 0)
                      (next-sign +1))
@@ -453,12 +453,12 @@ present, should be either :declaring or :defining."
   (Phase-2-error parser "Sorry, I really wanted ~A here." what))
 
 ;; We often want to look for either a certain punctuator or a certain reserved
-;; word. Matching on the former is easy, since we can check the type slot;
-;; however, the token-type of reserved words is :identifier, so they must be
-;; matched by logic as in is-reserved-word-p. Thus the concept of a ``token
+;; word. Matching on the former is easy, since we can check the |type| slot;
+;; however, the |token-type| of reserved words is |:identifier|, so they must be
+;; matched by logic as in |is-reserved-word-p|. Thus the concept of a ``token
 ;; designator'' is introduced. A token designator can be a keyword symbol, in
-;; which case the token-type is checked, or a string, in which case
-;; is-reserved-word-p is called.
+;; which case the |token-type| is checked, or a string, in which case
+;; |is-reserved-word-p| is called.
 (defun token-matches-p (token designator)
   "Return true if a token matches the given designator."
   (or (and (keywordp designator)
@@ -780,7 +780,7 @@ references are permitted in pointer types."
                         (setf token (get-next parser))
                         (cond ((token-matches-p token :left-parenthesis)
                                (setf token (get-next parser))
-                               (parse-field-list) ; affects token
+                               (parse-field-list) ; affects |token|
                                (if (token-matches-p token :right-parenthesis)
                                    (attach-line-break token :dedent :after)
                                    (expected-error parser
@@ -806,8 +806,8 @@ references are permitted in pointer types."
                (unless (token-matches-p token "of")
                  (expected-error parser "``of''"))
                (attach-line-break token :normal :after)
-                 ; as in parse-case-statement
-               (loop do (parse-variant) ; affects token
+                 ; as in |parse-case-statement|
+               (loop do (parse-variant) ; affects |token|
                      while (token-matches-p token :semicolon)
                      do (attach-line-break token :normal :after)))
              (parse-record-section ()
@@ -1025,7 +1025,7 @@ references are permitted in pointer types."
              (let ((procedurep (token-matches-p token "procedure")))
                (setf token (get-next parser))
                (cond ((is-free-identifier-p token)
-                      (let* ((name-token token) ; saved for attach-meaning
+                      (let* ((name-token token) ; saved for |attach-meaning|
                              (name (token-content name-token))
                              (meaning (get-meaning parser name t)))
                         (unless (and meaning
@@ -1196,7 +1196,7 @@ references are permitted in pointer types."
   (let ((token (get-next parser)))
     (unless (token-matches-p token "of")
       (expected-error parser "``of''"))
-    (attach-line-break token :normal :after) ; not :indent
+    (attach-line-break token :normal :after) ; not |:indent|
     (setf token (get-next parser))
     (loop do (unless (or (token-matches-p token "end")
                          (token-matches-p token :semicolon))
@@ -1221,7 +1221,7 @@ references are permitted in pointer types."
              (setf token (get-next parser)))
     (unless (token-matches-p token "end")
       (expected-error parser "``end''"))
-    (attach-line-break token :normal :after))) ; not :dedent
+    (attach-line-break token :normal :after))) ; not |:dedent|
 
 ;; <while statement> ::= while <expression> do <statement>
 (defun parse-while-statement (parser)
@@ -1388,7 +1388,7 @@ value is the type of the variable, which is used only by parse-with-statement."
                     (variable-type meaning)
                     (field-type meaning)))
           (token (get-next parser)))
-      (loop do ; while the token is :dot, :up-arrow, or :left-bracket
+      (loop do ; while the token is |:dot|, |:up-arrow|, or |:left-bracket|
         (cond ((token-matches-p token :dot)
                (setf token (get-next parser))
                (if (is-free-identifier-p token)
@@ -1633,7 +1633,6 @@ expression."
     (identify "false"
               'enumerator-meaning
               :standardp t)
-    (identify-weird-routine "dispose")
     (identify-weird-routine "eof")
     (identify-weird-routine "eoln")
     (identify-weird-routine "read_ln")
@@ -1642,14 +1641,15 @@ expression."
     (identify-weird-routine "write_ln")
     (identify-weird-routine "writeln")
     ;; Currently the parser cares only about whether a routine has parameters,
-    ;; without regard for their specification. (This is why ``new'', ``pack'',
-    ;; and ``unpack'' are not considered ``weird''.)
+    ;; without regard for their specification. (This is why ``dispose'',
+    ;; ``new'', ``pack'', and ``unpack'' are not considered ``weird''.)
     (identify-routine "abs" (list t))
     (identify-routine "arctan" (list t))
     (identify-routine "break" (list t))
     (identify-routine "break_in" (list t))
     (identify-routine "chr" (list t))
     (identify-routine "close" (list t))
+    (identify-routine "dispose")
     (identify-routine "erstat" (list t))
     (identify-routine "get" (list t))
     (identify-routine "ln" (list t))
@@ -1708,7 +1708,7 @@ expression."
             "set"
             "then"
             "to"
-            ;; Change this to "mtype" for TeX.
+            ;; Change this to |"mtype"| for TeX.
             "type"
             "until"
             "var"

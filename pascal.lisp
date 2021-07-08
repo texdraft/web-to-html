@@ -110,7 +110,7 @@ false if program-parameter-p is true.")))
     :initform nil
     :reader routine-result-type)
    (parameters
-    :type list ; of parameter-meaning objects
+    :type list ; of |parameter-meaning| objects
     :initarg :parameters
     :initform nil
     :accessor routine-parameters)
@@ -132,7 +132,7 @@ declaration."))
 
 (defclass program-meaning (meaning)
   ((parameters
-    :type list ; of parameter-meaning objects
+    :type list ; of |parameter-meaning| objects
     :initarg :parameters
     :reader program-parameters))
   (:documentation
@@ -201,7 +201,7 @@ declaration."))
 
 (defclass enumeration-type (Pascal-type scalar-type)
   ((enumerators
-    :type list ; of enumerator-meaning objects
+    :type list ; of |enumerator-meaning| objects
     :initform (list)
     :accessor enumeration-enumerators)))
 
@@ -211,7 +211,7 @@ declaration."))
     :initarg :packedp
     :reader array-packedp)
    (subscripts
-    :type list ; of scalar-type objects
+    :type list ; of |scalar-type| objects
     :initarg :subscripts
     :reader array-subscripts)
    (element-type
@@ -270,7 +270,7 @@ declaration."))
   (name nil :type (or identifier null))
     ; under whose auspices this environment exists
   (outer nil :type (or environment null)) ; outer scope
-  (labels (list) :type list) ; list of label objects
+  (labels (list) :type list) ; list of |label| objects
   (meanings (make-hash-table :test #'eq) :type hash-table))
 
 (defgeneric generate-id (meaning environment)

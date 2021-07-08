@@ -3,8 +3,8 @@
 
 ;;; Basic input.
 
-;; The input-has-ended and new-section conditions are of the utmost importance
-;; to the overall flow of Phase 1
+;; The |input-has-ended| and |new-section| conditions are of the utmost
+;; importance to the overall flow of Phase 1
 (define-condition input-has-ended ()
   ()
   (:documentation
@@ -22,8 +22,8 @@
 ;; The change file malarkey is mostly taken straight from TANGLE/WEAVE, with
 ;; alterations for the elimination of the globals buffer, loc, and limit. I'd
 ;; recommend skipping it and going to the line containing
-;; ``;;; Lexical analysis.''; all you need to know is that get-line returns the
-;; next line of input, and you can mostly ignore the slots of input-state.
+;; ``;;; Lexical analysis.''; all you need to know is that |get-line| returns
+;; the next line of input, and you can mostly ignore the slots of |input-state|.
 
 (defstruct input-state
   (line 0 :type fixnum) ; current line number in the current file
@@ -49,8 +49,7 @@ is optional."
     (change-changing input)
     input))
 
-;; The input-error function is defined later.
-
+;; The |input-error| function is defined later.
 (defun look-for-change (input)
   "Look ahead in the change file for the next change."
   (let ((text))
@@ -161,9 +160,10 @@ line of the WEB file."
 
 ;;; Lexical analysis.
 (defstruct lexer-state
-  ;; The input-state slot is nil when a module name is being tokenized.
+  ;; The |input-state| slot is nil when a module name is being tokenized.
   (input-state nil :type (or input-state null)) ; low-level details
-  ;; The only place where buffer = nil is relevant is in next-character-file.
+  ;; The only place where |(eq buffer nil)| is relevant is in
+  ;; |next-character-file|.
   (buffer nil :type (or string null)) ; text of line or module name; initially nil
   (position 0 :type fixnum) ; current place in line or module name
 
@@ -183,20 +183,21 @@ line of the WEB file."
   (module nil :type (or module null)) ; module whose name we are currently reading
 
   ;; We want to be able to use the lexing routines for tokenizing both normal
-  ;; text and module names. So while reading from the input file, next-character
-  ;; and previous-character are set to the functions next-character-file and
-  ;; next-line-file below, but when a section name is being tokenized, they are
-  ;; set to functions that move ahead in the name (which will be a string). The
-  ;; in-module-name-p slot is true only in this latter situation.
+  ;; text and module names. So while reading from the input file,
+  ;; |next-character| and |previous-character| are set to the functions
+  ;; |next-character-file| and |next-line-file| below, but when a module name is
+  ;; being tokenized, they are set to functions that move ahead in the name
+  ;; (which will be a string). The |in-module-name-p| slot is true only in this
+  ;; latter situation.
   (next-character nil :type (function (lexer-state) character))
     ; called to get the next character
   (previous-character nil :type (function (lexer-state) character)))
     ; called to move back to the previous character
 
-;; Only one of in-TeX-part-p, in-definition-part-p, in-module-name-p, and
-;; in-Pascal-part-p will be true at any given time; and they cannot all be
-;; false. When in-inline-code-p and in-comment-p are both true, in-TeX-part-p
-;; and in-module-name-p will be false.
+;; Only one of |in-TeX-part-p|, |in-definition-part-p|, |in-module-name-p|, and
+;; |in-Pascal-part-p| will be true at any given time; and they cannot all be
+;; false. When |in-inline-code-p| and |in-comment-p| are both true,
+;; |in-TeX-part-p| and |in-module-name-p| will be false.
 
 (defun input-error (state control &rest arguments)
   "Report a problem occurring in Phase 1. The state argument can be either an
@@ -214,8 +215,8 @@ low-level process of change file merging."
                  (t
                   (report-input-state (lexer-state-input-state state))
                   ;; We don't need to add a line break after printing the
-                  ;; buffer, because next-line-file always adds #\Newline to the
-                  ;; end of every line.
+                  ;; buffer, because |next-line-file| always adds |#\Newline| to
+                  ;; the end of every line.
                   (format *error-output* ":~%~A" (lexer-state-buffer state))
                   (loop repeat (lexer-state-position state) do
                     (write-char #\Space *error-output*))
@@ -236,9 +237,9 @@ low-level process of change file merging."
                               (lexer-state-definition-part lexer) (list)
                               (lexer-state-Pascal-part lexer) (list)
                               (lexer-state-in-comment-p lexer) nil
-                              ;; The in-module-name-p slot need not be reset.
-                              ;; (In fact, it shouldn't be, because Phase-1
-                              ;; might call input-error after this function.)
+                              ;; The |in-module-name-p| slot need not be reset.
+                              ;; (In fact, it shouldn't be, because |Phase-1|
+                              ;; might call |input-error| after this function.)
                               (lexer-state-in-inline-code-p lexer) nil
                               (lexer-state-in-TeX-part-p lexer) nil
                               (lexer-state-in-definition-part-p lexer) nil
@@ -255,8 +256,8 @@ low-level process of change file merging."
 ;;         - when in a module name but not in inline code within the name;
 ;; otherwise we are expecting Pascal text. Comments and inline code cannot nest,
 ;; so that ``|Pascal{\TeX}Pascal|'' is an error. (This implies that when both
-;; in-inline-code-p and in-comment-p are true, we must be reading inline code
-;; within a comment in Pascal code.)
+;; |in-inline-code-p| and |in-comment-p| are true, we must be reading inline
+;; code within a comment in Pascal code.)
 (defun expecting-TeX-p (lexer)
   "Should we be looking for a :TeX-portion or for Pascal code?"
   (or (and (lexer-state-in-TeX-part-p lexer)
@@ -320,10 +321,10 @@ low-level process of change file merging."
 ;; Unlike in TANGLE, tokens aren't read one-at-a-time. Instead, we gather them
 ;; until a big change in state happens---namely, the beginning of a section or
 ;; the end of input.
-;; You might like to think of read-Pascal and read-TeX as coroutines. The
+;; You might like to think of |read-Pascal| and |read-TeX| as coroutines. The
 ;; ``return'' statements below are effectively yields; the read-text function
 ;; manages switching between the two routines. An earlier design implemented the
-;; coroutining aspect by having read-Pascal and read-TeX call each other,
+;; coroutining aspect by having |read-Pascal| and |read-TeX| call each other,
 ;; causing the call stack to grow as we switch from Pascal to TeX text and vice
 ;; versa. The greatest depth reached while reading tex.web is around 670, in
 ;; section 585.
@@ -345,14 +346,14 @@ low-level process of change file merging."
                 (contribute lexer
                             :type :begin-comment
                             :origin (capture-origin lexer))
-                (return)))) ; yield to read-TeX
+                (return)))) ; yield to |read-TeX|
         ((#\|)
          (cond ((lexer-state-in-inline-code-p lexer)
                 (setf (lexer-state-in-inline-code-p lexer) nil)
                 (contribute lexer
                             :type :end-inline-code
                             :origin (capture-origin lexer))
-                (return)) ; yield to read-TeX
+                (return)) ; yield to |read-TeX|
                (t
                 (input-error lexer "What's a `|' doing here?"))))
         ((#\')
@@ -367,7 +368,7 @@ low-level process of change file merging."
                (t
                 (get-punctuator c lexer)
                 (when (expecting-TeX-p lexer) ; a comment might begin
-                  (return))))))))) ; so we may have to yield to read-TeX
+                  (return))))))))) ; so we may have to yield to |read-TeX|
 
 (defun read-TeX (lexer)
   (let ((portion (make-string-output-stream))
@@ -375,22 +376,22 @@ low-level process of change file merging."
         (c (next-character lexer)))
     (flet ((finish-portion ()
              (let ((text (get-output-stream-string portion)))
-               ;; We can get an empty :TeX-portion if the input file ends during
-               ;; the execution of control-code or just after finish-portion is
-               ;; called.
-               (when (> (length text) 0) ; don't add empty :TeX-portions
+               ;; We can get an empty |:TeX-portion| if the input file ends
+               ;; during the execution of control-code or just after
+               ;; finish-portion is called.
+               (when (> (length text) 0) ; don't add empty |:TeX-portions|
                  (contribute lexer
                              :type :TeX-portion
                              :origin origin
                              :content text)))))
-      ;; You might be wondering why the input-has-ended trap is necessary here
-      ;; but not in read-Pascal or its subroutines. The answer is that
-      ;; :TeX-portion tokens can span multiple lines, while Pascal tokens
+      ;; You might be wondering why the |input-has-ended| trap is necessary here
+      ;; but not in |read-Pascal| or its subroutines. The answer is that
+      ;; |:TeX-portion| tokens can span multiple lines, while Pascal tokens
       ;; cannot, with the exception of module names (and there is a handler for
-      ;; input-has-ended in control-text as well). Thus the #\Newline inserted
-      ;; by next-line-file always terminates a Pascal token, and it will be
-      ;; encountered before reaching the end of the file, so input-has-ended
-      ;; will occur in Pascal text only at a token boundary.
+      ;; |input-has-ended| in |control-text| as well). Thus the |#\Newline|
+      ;; inserted by |next-line-file| always terminates a Pascal token, and it
+      ;; will be encountered before reaching the end of the file, so
+      ;; |input-has-ended| will occur in Pascal text only at a token boundary.
       (handler-bind ((input-has-ended
                        (lambda (condition)
                          (declare (ignore condition))
@@ -404,7 +405,7 @@ low-level process of change file merging."
              (contribute lexer
                          :type :begin-inline-code
                          :origin (capture-origin lexer))
-             (return)) ; yield to read-Pascal
+             (return)) ; yield to |read-Pascal|
             ((#\\)
              (write-char #\\ portion)
              (write-char (next-character lexer) portion))
@@ -421,7 +422,7 @@ low-level process of change file merging."
                     (contribute lexer
                                 :type :end-comment
                                 :origin (capture-origin lexer))
-                    (return)) ; yield to read-Pascal
+                    (return)) ; yield to |read-Pascal|
                    (t
                     (input-error lexer "Unbalanced right brace in TeX text."))))
             ((#\*)
@@ -433,7 +434,7 @@ low-level process of change file merging."
                            (contribute lexer
                                        :type :end-comment
                                        :origin (capture-origin lexer))
-                           (return)) ; yield to read-Pascal
+                           (return)) ; yield to |read-Pascal|
                           (t
                            (write-char #\* portion)
                            (previous-character lexer))))
@@ -453,11 +454,11 @@ low-level process of change file merging."
   (loop do ; until end of file or start of section (that is, until
            ; input-has-ended or new-section is signaled)
     ;; The functions should alternate on each iteration. In other words, the
-    ;; value of expecting-TeX-p must change every go through the loop. Thus this
-    ;; test is not strictly necessary; the loop could simply be
-    ;; (loop do (read-TeX) (read-Pascal)), because the initial state in a call
-    ;; to read-text is always one in which TeX text is expected. However, I find
-    ;; the current formulation to be clearer.
+    ;; value of |expecting-TeX-p| must change every go through the loop. Thus
+    ;; this test is not strictly necessary; the loop could simply be
+    ;; |(loop do (read-TeX) (read-Pascal))|, because the initial state in a call
+    ;; to |read-text| is always one in which TeX text is expected. However, I
+    ;; find the current formulation to be clearer.
     (if (expecting-TeX-p lexer)
         (read-TeX lexer)
         (read-Pascal lexer))))
@@ -589,7 +590,7 @@ low-level process of change file merging."
                                 ((member c '(#\Space #\Tab #\Newline)
                                          :test #'char=)
                                  ;; Consecutive whitespace characters are
-                                 ;; normalized to a single #\Space.
+                                 ;; normalized to a single |#\Space|.
                                  (unless seen-space-p
                                    (setf seen-space-p t)
                                    (write-char #\Space text)))
@@ -603,9 +604,9 @@ low-level process of change file merging."
                                          module-name-p)
                       ;; No token will be stored, and no module name will enter
                       ;; the tree, since this signal unwinds the stack to
-                      ;; scan-section. The lexer state's boolean slots will not
-                      ;; change, but there won't be any further issues because
-                      ;; we are at the end of input.
+                      ;; |scan-section|. The lexer state's boolean slots will
+                      ;; not change, but there won't be any further issues
+                      ;; because we are at the end of input.
                       (signal condition)))))
          (cond ((char= c #\<)
                 (let* ((origin (capture-origin lexer))
@@ -923,10 +924,10 @@ low-level process of change file merging."
               (contribute lexer
                           :type :colon
                           :origin (capture-origin lexer))))))
-    (otherwise ; we fell through to here from read-Pascal
+    (otherwise ; we fell through to here from |read-Pascal|
      (input-error lexer "Invalid character."))))
 
-;; Perhaps a better name for scan-section is scan-sections, since it does not
+;; Perhaps a better name for |scan-section| is scan-sections, since it does not
 ;; return after scanning only one section. Instead it does its thing until the
 ;; end of input, by means of a tail call.
 (defun scan-section (lexer starredp)
@@ -996,7 +997,7 @@ low-level process of change file merging."
   (scan-WEB WEB-file change-file)
   (when (null (module-definitions (get-unnamed)))
     (cerror "Keep going" "No output was specified."))
-  ;; Now tokenize the module names and nreverse the lists of definitions.
+  ;; Now tokenize the module names and |nreverse| the lists of definitions.
   (let ((unnamed (get-unnamed)))
     (setf (module-definitions unnamed) (nreverse (module-definitions unnamed))))
   (map-modules (lambda (module)
@@ -1018,7 +1019,7 @@ low-level process of change file merging."
                         (lexer (initialize-lexer-state nil
                                                        next-character
                                                        previous-character)))
-                   ;; The position slot is 0 by default.
+                   ;; The |position| slot is 0 by default.
                    (setf (lexer-state-buffer lexer) name
                          (lexer-state-in-module-name-p lexer) t
                          (lexer-state-module lexer) module)

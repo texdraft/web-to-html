@@ -106,13 +106,12 @@
 (defstruct token
   (type nil :type token-type-type)
   (origin nil :type origin)
-  (content nil :type (or null ; punctuators, :begin-Pascal for unnamed
-                              ; modules, :begin-comment, :end-comment,
-                              ; :begin-inline-code, :end-inline-code, :indent,
-                              ; :dedent, :line-break, :dollar-sign
+  (content nil :type (or null ; punctuators, |:begin-Pascal| for unnamed
+                              ; modules, |:begin-comment|, |:end-comment|,
+                              ; |:begin-inline-code, |:end-inline-code|, |:dollar-sign|
                          integer ; integer literals, string number for
-                                 ; :WEB-string, number for :long-distance
-                         string ; control text, :Pascal-string, :TeX-portion
+                                 ; |:WEB-string|, number for |:long-distance|
+                         string ; control text, |:Pascal-string|, |:TeX-portion|
                          floating-point-literal ; floating-point numbers
                          identifier ; identifiers
                          module)) ; module references
@@ -126,7 +125,7 @@
 
 (defstruct extra
   "Holds additional information about a token."
-  ;; The first three slots are used only for :identifier tokens.
+  ;; The first three slots are used only for |:identifier| tokens.
   (definingp nil :type boolean) ; is this a definition?
   (declaringp nil :type boolean) ; is this a declaration?
   (meanings (list) :type list) ; list of meaning objects
@@ -274,7 +273,7 @@ will be added."
                (funcall function node)
                (when (module-lower-link node)
                  (do-module (module-lower-link node)))))
-      (when root ; root remains nil if no module names have been entered
+      (when root ; |root| remains nil if no module names have been entered
         (do-module root))))
 
   (defun add-section (section)
