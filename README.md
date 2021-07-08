@@ -46,7 +46,7 @@ To get the full text of a module `module`, you might run
         appending (section-Pascal-part (get-nth-section definition))))
 ```
 
-Running Phase 2 is easier; all you need to do is evaluate `(Phase-2)`, provided that Phase 1 has already completed. However, most of Knuth's programs will need to be changed, because they have meta-comments (`@{`&hellip`@}`) that confuse Phase 2. For `WEAVE` and `TANGLE` it suffices to remove the reference to the “Compiler directives” module, and the `'BREAKPOINT'` comment in TeX's `debug_help` must also be removed.
+Running Phase 2 is easier; all you need to do is evaluate `(Phase-2)`, provided that Phase 1 has already completed. However, most of Knuth's programs will need to be changed, because they have meta-comments (`@{`&hellip;`@}`) that confuse Phase 2. For `WEAVE` and `TANGLE` it suffices to remove the reference to the “Compiler directives” module, and the `'BREAKPOINT'` comment in TeX's `debug_help` must also be removed.
 
 # Weird stuff
 
