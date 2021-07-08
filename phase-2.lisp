@@ -1708,7 +1708,7 @@ expression."
             "set"
             "then"
             "to"
-            ;; Change this to |"mtype"| for TeX.
+            ;; Remove the next line for TeX.
             "type"
             "until"
             "var"
