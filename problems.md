@@ -51,3 +51,7 @@ save_stack[save_ptr+-1].int
 ```
 
 My initial parser followed Pascal's expression syntax closely and did not accept `save_ptr+-1`. The solution was simple: modify the parser to allow a &langle;term&rangle; to begin with a sign. (`TANGLE` converts `+-1` into `-1`, achieving essentially the same result.)
+
+## BREAKPOINT
+
+In TeX's `debug_help`, the pragmatic comment `@{'BREAKPOINT'@}` appears. The parser ends up seeing a random, unexpected `:Pascal-string` in the middle of a compound statement. As with the compiler directives, I suggest changing it to `@={'BREAKPOINT'}@>`.
