@@ -1649,7 +1649,7 @@ expression."
     (identify-routine "break_in" (list t))
     (identify-routine "chr" (list t))
     (identify-routine "close" (list t))
-    (identify-routine "dispose")
+    (identify-routine "dispose" (list t))
     (identify-routine "erstat" (list t))
     (identify-routine "get" (list t))
     (identify-routine "ln" (list t))
