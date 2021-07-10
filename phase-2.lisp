@@ -425,12 +425,11 @@ present, should be either :declaring or :defining."
       (Phase-2-error parser "Bad field selector."))
     (push meaning (extra-meanings (ensure-extra token)))))
 
-(defun attach-line-break (token type place)
-  "Annotate a token with line-breaking information."
+(defun attach-formatting (token property)
+  "Annotate a token with formatting information."
   (let ((extra (ensure-extra token)))
-    (if (eq place :before)
-        (setf (extra-break-before extra) type)
-        (setf (extra-break-after extra) type))))
+    (pushnew property (extra-formatting-properties extra)
+             :test #'eq)))
 
 (defun is-reserved-word-p (token word)
   "Return true if the token should be read as the given Pascal reserved word."
@@ -448,10 +447,6 @@ present, should be either :declaring or :defining."
   (and (eq (token-type token) :identifier)
        (not (identifier-reservedp (token-content token)))))
 
-(defun expected-error (parser what)
-  "Report a missing element of the input."
-  (Phase-2-error parser "Sorry, I really wanted ~A here." what))
-
 ;; We often want to look for either a certain punctuator or a certain reserved
 ;; word. Matching on the former is easy, since we can check the |type| slot;
 ;; however, the |token-type| of reserved words is |:identifier|, so they must be
@@ -465,6 +460,10 @@ present, should be either :declaring or :defining."
            (eq (token-type token) designator))
       (and (stringp designator)
            (is-reserved-word-p token designator))))
+
+(defun expected-error (parser what)
+  "Report a missing element of the input."
+  (Phase-2-error parser "Sorry, I really wanted ~A here." what))
 
 ;; <program> ::= <program heading> <block> .
 (defun parse-program (parser)
@@ -488,9 +487,11 @@ present, should be either :declaring or :defining."
                    (when (token-matches-p token :left-parenthesis)
                      (setf parameters (parse-program-parameters parser)
                            token (get-next parser)))
-                   (if (token-matches-p token :semicolon)
-                       (attach-line-break token :indent :after)
-                       (expected-error parser "a semicolon"))
+                   (cond ((token-matches-p token :semicolon)
+                          (attach-formatting token :indent)
+                          (attach-formatting token :line-break-after))
+                         (t
+                          (expected-error parser "a semicolon")))
                    (install-meaning parser (token-content program-name)
                                     'program-meaning
                                     :parameters parameters))
@@ -535,26 +536,27 @@ will have been a semicolon, and begin-scope will have been called."
     (when (token-matches-p token "label")
       (parse-label-declarations parser)
       (setf token (get-next parser))
-      (attach-line-break token :normal :before))
+      (attach-formatting token :line-break-before))
     (when (token-matches-p token "const")
       (parse-constant-definitions parser)
       (setf token (get-next parser))
-      (attach-line-break token :normal :before))
+      (attach-formatting token :line-break-before))
     (when (token-matches-p token "type")
       (parse-type-definitions parser)
       (setf token (get-next parser))
-      (attach-line-break token :normal :before))
+      (attach-formatting token :line-break-before))
     (when (token-matches-p token "var")
       (parse-variable-declarations parser)
       (setf token (get-next parser))
-      (attach-line-break token :normal :before))
+      (attach-formatting token :line-break-before))
     (when (or (token-matches-p token "procedure")
               (token-matches-p token "function"))
       (parse-routine-declarations parser token)
       (setf token (get-next parser))
-      (attach-line-break token :normal :before))
+      (attach-formatting token :line-break-before))
     (cond ((token-matches-p token "begin")
-           (attach-line-break token :indent :after)
+           (attach-formatting token :indent)
+           (attach-formatting token :line-break-after)
            (parse-compound-statement parser))
           (t
            (expected-error parser "a compound statement or a declaration")))))
@@ -562,8 +564,9 @@ will have been a semicolon, and begin-scope will have been called."
 ;; <label declaration part> ::= label <constant> { , <constant> } ;
 (defun parse-label-declarations (parser)
   "Parse the label declaration part of a block."
-  (let ((token))
-    (loop do (let ((first-token (get-next parser)))
+  (let ((token (get-next parser)))
+    (attach-formatting token :begin-table)
+    (loop do (let ((first-token token))
                (put-back-token parser first-token)
                (let ((value (parse-label parser)))
                  (if (and value (integerp value))
@@ -572,9 +575,10 @@ will have been a semicolon, and begin-scope will have been called."
                        (setf (extra-label-status extra) label))
                      (expected-error parser "a constant integral expression"))))
              (setf token (get-next parser))
-          while (token-matches-p token :comma))
+          while (token-matches-p token :comma)
+          do (setf token (get-next parser)))
     (if (token-matches-p token :semicolon)
-        (attach-line-break token :dedent :after)
+        (attach-formatting token :end-table)
         (expected-error parser "a semicolon"))))
 
 ;; <constant definition part> ::=
@@ -586,6 +590,7 @@ will have been a semicolon, and begin-scope will have been called."
   (let ((token (get-next parser)))
     (unless (is-free-identifier-p token)
       (expected-error parser "an identifier"))
+    (attach-formatting token :begin-table)
     (loop while (is-free-identifier-p token) do
       (let ((name-token token))
         (setf token (get-next parser))
@@ -596,8 +601,11 @@ will have been a semicolon, and begin-scope will have been called."
                (attach-meaning parser name-token :defining)
                (setf token (get-next parser))
                (cond ((token-matches-p token :semicolon)
-                      (attach-line-break token :normal :after)
-                      (setf token (get-next parser)))
+                      (let ((semicolon token))
+                        (setf token (get-next parser))
+                        (if (is-free-identifier-p token)
+                            (attach-formatting semicolon :line-break-after)
+                            (attach-formatting semicolon :end-table))))
                      (t
                       (expected-error parser "a semicolon"))))
               (t
@@ -609,10 +617,10 @@ will have been a semicolon, and begin-scope will have been called."
 ;; <type definition> ::= <identifier> = <type>
 (defun parse-type-definitions (parser)
   "Parse the type definition part of a block."
-  (let ((token (get-next parser))
-        (indentedp nil))
+  (let ((token (get-next parser)))
     (unless (is-free-identifier-p token)
       (expected-error parser "an identifier"))
+    (attach-formatting token :begin-table)
     (loop while (is-free-identifier-p token) do
       (let ((name-token token))
         (setf token (get-next parser))
@@ -630,23 +638,15 @@ will have been a semicolon, and begin-scope will have been called."
                      (setf (cdr entry) nil))))
                (setf token (get-next parser))
                (cond ((token-matches-p token :semicolon)
-                      (cond ((not indentedp)
-                             (attach-line-break token :indent :after)
-                             (setf indentedp t))
-                            (t
-                             (attach-line-break token :normal :after)))
-                      (setf token (get-next parser))
-                      (unless (or (token-matches-p token "var")
-                                  (token-matches-p token "procedure")
-                                  (token-matches-p token "function")
-                                  (token-matches-p token "begin")
-                                  (token-matches-p token :identifier))
-                        (Phase-2-error parser "Unexpected symbol.")))
+                      (let ((semicolon token))
+                        (setf token (get-next parser))
+                        (if (is-free-identifier-p token)
+                            (attach-formatting semicolon :line-break-after)
+                            (attach-formatting semicolon :end-table))))
                      (t
                       (expected-error parser "a semicolon"))))
               (t
                (expected-error parser "an equals sign")))))
-    (attach-line-break token :dedent :before)
     (put-back-token parser token)))
 
 ;; <type> ::= <simple type> | <structured type> | <pointer type>
@@ -666,15 +666,19 @@ will have been a semicolon, and begin-scope will have been called."
   "Parse and return the representaton of a Pascal type. If the type-definition-p
 parameter is true, then we are currently parsing type definitions, so forward
 references are permitted in pointer types."
-  (let ((token (get-next parser))
-        (packedp nil))
+  (let* ((token (get-next parser))
+         (packed-token token) ; saved for attach-formatting
+         (packedp nil))
     (when (token-matches-p token "packed")
       (setf packedp t
             token (get-next parser)))
     (cond ((token-matches-p token "array")
            (parse-array-type parser packedp type-definition-p))
           ((token-matches-p token "record")
-           (attach-line-break token :indent :after)
+           (if packedp
+               (attach-formatting packed-token :begin-table)
+               (attach-formatting token :begin-table))
+           (attach-formatting token :line-break-after)
            (parse-record-type parser identifier packedp type-definition-p))
           ((token-matches-p token "set")
            (setf token (get-next parser))
@@ -776,13 +780,15 @@ references are permitted in pointer types."
                           (setf token (get-next parser))
                        while (token-matches-p token :comma))
                  (cond ((token-matches-p token :colon)
-                        (attach-line-break token :indent :after)
+                        (attach-formatting token :indent)
+                        (attach-formatting token :line-break-after)
                         (setf token (get-next parser))
                         (cond ((token-matches-p token :left-parenthesis)
                                (setf token (get-next parser))
+                               (attach-formatting token :begin-table)
                                (parse-field-list) ; affects |token|
                                (if (token-matches-p token :right-parenthesis)
-                                   (attach-line-break token :dedent :after)
+                                   (attach-formatting token :end-table)
                                    (expected-error parser
                                                    "a right parenthesis"))
                                (setf token (get-next parser)))
@@ -805,11 +811,11 @@ references are permitted in pointer types."
                    (expected-error parser "a type identifier"))
                (unless (token-matches-p token "of")
                  (expected-error parser "``of''"))
-               (attach-line-break token :normal :after)
+               (attach-formatting token :line-break-after)
                  ; as in |parse-case-statement|
                (loop do (parse-variant) ; affects |token|
                      while (token-matches-p token :semicolon)
-                     do (attach-line-break token :normal :after)))
+                     do (attach-formatting token :line-break-after)))
              (parse-record-section ()
                (let ((group (list)))
                  (loop do (unless (is-free-identifier-p token)
@@ -831,14 +837,16 @@ references are permitted in pointer types."
                  (parse-record-section)
                  (setf token (get-next parser))
                  (when (token-matches-p token :semicolon)
-                   (attach-line-break token :normal :after)
+                   (attach-formatting token :line-break-after)
                    (setf token (get-next parser))))
                (when (token-matches-p token "case")
                  (parse-variant-part))))
       (parse-field-list))
     (unless (token-matches-p token "end")
       (expected-error parser "``end''"))
-    (attach-line-break token :dedent :before)
+    (attach-formatting token :dedent)
+    (attach-formatting token :line-break-before)
+    (attach-formatting token :end-table)
     (let ((fields (environment-meanings (parser-state-environment parser))))
       (end-scope parser)
       (make-instance 'record-type
@@ -893,8 +901,10 @@ references are permitted in pointer types."
 ;; <variable declaration> ::= <identifier> { , <identifier> } : <type>
 (defun parse-variable-declarations (parser)
   "Parse the variable declarations for a block."
-  (let ((token (get-next parser))
-        (indentedp nil))
+  (let ((token (get-next parser)))
+    (unless (is-free-identifier-p token)
+      (expected-error parser "an identifier"))
+    (attach-formatting token :begin-table)
     (loop while (is-free-identifier-p token) do
       (let ((names (list)))
         (loop do (push token names)
@@ -913,15 +923,13 @@ references are permitted in pointer types."
               (t
                (expected-error parser "a colon"))))
       (cond ((token-matches-p token :semicolon)
-             (cond ((not indentedp)
-                    (attach-line-break token :indent :after)
-                    (setf indentedp t))
-                   (t
-                    (attach-line-break token :normal :after)))
-             (setf token (get-next parser)))
+             (let ((semicolon token))
+               (setf token (get-next parser))
+               (if (is-free-identifier-p token)
+                   (attach-formatting semicolon :line-break-after)
+                   (attach-formatting semicolon :end-table))))
             (t
              (expected-error parser "a semicolon"))))
-    (attach-line-break token :dedent :before)
     (put-back-token parser token)))
 
 ;; <routine declaration part> ::= { <routine declaration> ; }
@@ -958,7 +966,8 @@ references are permitted in pointer types."
                        token (get-next parser)))
                (unless (token-matches-p token :semicolon)
                  (expected-error parser "a semicolon"))
-               (attach-line-break token :indent :after)
+               (attach-formatting token :indent)
+               (attach-formatting token :line-break-after)
                (setf token (get-next parser))
                (let ((forwardp nil))
                  (when (and (is-free-identifier-p token)
@@ -1052,7 +1061,7 @@ references are permitted in pointer types."
                     (token-matches-p token "function")) do
       (parse-routine-declaration)
       (cond ((token-matches-p token :semicolon)
-             (attach-line-break token :normal :after)
+             (attach-formatting token :line-break-after)
              (setf token (get-next parser)))
             (t
              (expected-error parser "a semicolon"))))
@@ -1065,10 +1074,17 @@ references are permitted in pointer types."
     (loop do (parse-statement parser)
              (setf token (get-next parser))
           while (token-matches-p token :semicolon)
-          do (attach-line-break token :normal :after))
-    (if (token-matches-p token "end")
-        (attach-line-break token :dedent :before)
-        (expected-error parser "``end''"))))
+          do (let ((semicolon token))
+               (setf token (get-next parser))
+               (cond ((token-matches-p token "end")
+                      (attach-formatting semicolon :dedent)
+                      (return))
+                     (t
+                      (attach-formatting semicolon :line-break-after)
+                      (put-back-token parser token)))))
+    (unless (token-matches-p token "end")
+      (expected-error parser "``end''"))
+    (attach-formatting token :line-break-before)))
 
 ;; <statement> ::= <unlabelled statement> | <constant> : <unlabelled statement>
 ;;
@@ -1095,7 +1111,8 @@ references are permitted in pointer types."
     (cond ((is-free-identifier-p token)
            (parse-assignment/call parser token))
           ((token-matches-p token "begin")
-           (attach-line-break token :indent :after)
+           (attach-formatting token :indent)
+           (attach-formatting token :line-break-after)
            (parse-compound-statement parser))
           ((token-matches-p token "if")
            (parse-if-statement parser))
@@ -1104,7 +1121,8 @@ references are permitted in pointer types."
           ((token-matches-p token "while")
            (parse-while-statement parser))
           ((token-matches-p token "repeat")
-           (attach-line-break token :indent :after)
+           (attach-formatting token :indent)
+           (attach-formatting token :line-break-after)
            (parse-repeat-statement parser))
           ((token-matches-p token "for")
            (parse-for-statement parser))
@@ -1127,16 +1145,18 @@ references are permitted in pointer types."
              (token-matches-p token :octal-integer))
          ;; The idea is that if a statement begins with one of these tokens,
          ;; then we must be looking at a label (a constant expression).
+         (attach-formatting token :outdent) ; labels protrude to the left
          (put-back-token parser token)
          (let ((value (parse-label parser))
-               (extra (ensure-extra token)))
+               ;; The call to attach-formatting has already |ensure-extra|'d
+               (extra (token-extra token)))
            (if value
                (setf (extra-label-status extra) (get-label parser value))
                (expected-error parser "a label")))
          (setf token (get-next parser))
          (unless (token-matches-p token :colon)
            (expected-error parser "a colon"))
-         (attach-line-break token :normal :after))
+         (attach-formatting token :line-break-after))
         (t
          (put-back-token parser token))))
 
@@ -1175,15 +1195,19 @@ references are permitted in pointer types."
   (let ((token (get-next parser)))
     (unless (token-matches-p token "then")
       (expected-error parser "``then''"))
-    (attach-line-break token :indent :after)
+    (attach-formatting token :indent)
+    (attach-formatting token :line-break-after)
     (parse-statement parser)
     (setf token (get-next parser))
-    (attach-line-break token :dedent :before)
+    (attach-formatting token :dedent)
+    (attach-formatting token :line-break-before)
     (when (token-matches-p token "else")
-      (attach-line-break token :indent :after)
+      (attach-formatting token :indent)
+      (attach-formatting token :line-break-after)
       (parse-statement parser)
       (setf token (get-next parser))
-      (attach-line-break token :dedent :before))
+      (attach-formatting token :dedent)
+      (attach-formatting token :line-break-before))
     (put-back-token parser token)))
 
 ;; <case statement> ::=
@@ -1196,7 +1220,7 @@ references are permitted in pointer types."
   (let ((token (get-next parser)))
     (unless (token-matches-p token "of")
       (expected-error parser "``of''"))
-    (attach-line-break token :normal :after) ; not |:indent|
+    (attach-formatting token :line-break-after) ; not indented
     (setf token (get-next parser))
     (loop do (unless (or (token-matches-p token "end")
                          (token-matches-p token :semicolon))
@@ -1211,17 +1235,17 @@ references are permitted in pointer types."
                      while (token-matches-p token :comma)
                      do (setf token (get-next parser)))
                (cond ((token-matches-p token :colon)
-                      (attach-line-break token :indent :after)
+                      (attach-formatting token :indent)
+                      (attach-formatting token :line-break-after)
                       (parse-statement parser))
                      (t
                       (expected-error parser "a colon")))
                (setf token (get-next parser)))
           while (token-matches-p token :semicolon)
-          do (attach-line-break token :normal :after)
+          do (attach-formatting token :line-break-after)
              (setf token (get-next parser)))
     (unless (token-matches-p token "end")
-      (expected-error parser "``end''"))
-    (attach-line-break token :normal :after))) ; not |:dedent|
+      (expected-error parser "``end''"))))
 
 ;; <while statement> ::= while <expression> do <statement>
 (defun parse-while-statement (parser)
@@ -1229,7 +1253,8 @@ references are permitted in pointer types."
   (parse-expression parser)
   (let ((token (get-next parser)))
     (cond ((token-matches-p token "do")
-           (attach-line-break token :indent :after)
+           (attach-formatting token :indent)
+           (attach-formatting token :line-break-after)
            (parse-statement parser))
           (t
            (expected-error parser "``do''")))))
@@ -1242,9 +1267,10 @@ references are permitted in pointer types."
     (loop do (parse-statement parser)
              (setf token (get-next parser))
           while (token-matches-p token :semicolon)
-          do (attach-line-break token :normal :after))
+          do (attach-formatting token :line-break-after))
     (cond ((token-matches-p token "until")
-           (attach-line-break token :dedent :before)
+           (attach-formatting token :dedent)
+           (attach-formatting token :line-break-before)
            (parse-expression parser))
           (t
            (expected-error parser "``until''")))))
@@ -1267,10 +1293,12 @@ references are permitted in pointer types."
                          (parse-expression parser)
                          (setf token (get-next parser))
                          (cond ((token-matches-p token "do")
-                                (attach-line-break token :indent :after)
+                                (attach-formatting token :indent)
+                                (attach-formatting token :line-break-after)
                                 (parse-statement parser)
                                 (setf token (get-next parser))
-                                (attach-line-break token :dedent :before)
+                                (attach-formatting token :dedent)
+                                (attach-formatting token :line-break-before)
                                 (put-back-token parser token))
                                (t
                                 (expected-error parser "``do''"))))
@@ -1351,10 +1379,12 @@ references are permitted in pointer types."
              (setf token (get-next parser))
           while (token-matches-p token :comma))
     (cond ((token-matches-p token "do")
-           (attach-line-break token :indent :after)
+           (attach-formatting token :indent)
+           (attach-formatting token :line-break-after)
            (parse-statement parser)
            (setf token (get-next parser))
-           (attach-line-break token :dedent :before)
+           (attach-formatting token :dedent)
+           (attach-formatting token :line-break-before)
            (put-back-token parser token))
           (t
            (expected-error parser "``do''")))

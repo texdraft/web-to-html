@@ -123,6 +123,15 @@
            :indent ; break line and increase indentation
            :dedent)) ; break line and decrease indentation
 
+(deftype formatting-property () ; defined for the sake of documentation
+  '(member :indent ; increase indentation on next line break
+           :dedent ; decrease indentation on next line break
+           :outdent ; make this line stick out to the left
+           :begin-alignment ; start table
+           :end-alignment ; conclude table
+           :line-break-before ; break line after previous token
+           :line-break-after)) ; break line before next token
+
 (defstruct extra
   "Holds additional information about a token."
   ;; The first three slots are used only for |:identifier| tokens.
@@ -131,8 +140,7 @@
   (meanings (list) :type list) ; list of meaning objects
   (label-status nil :type (or boolean
                               label)) ; defined in pascal.lisp
-  (break-before nil :type line-break-type)
-  (break-after nil :type line-break-type))
+  (formatting-properties (list) :type list)) ; of |formatting-property| keywords
 
 (defstruct identifier
   "Global information about a name."
