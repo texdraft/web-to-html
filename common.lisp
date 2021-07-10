@@ -127,8 +127,8 @@
   '(member :indent ; increase indentation on next line break
            :dedent ; decrease indentation on next line break
            :outdent ; make this line stick out to the left
-           :begin-alignment ; start table
-           :end-alignment ; conclude table
+           :begin-table ; start table
+           :end-table ; conclude table
            :line-break-before ; break line after previous token
            :line-break-after)) ; break line before next token
 
