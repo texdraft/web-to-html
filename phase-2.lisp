@@ -112,6 +112,8 @@ search is unsuccessful and the third argument is false, an error is signaled."
 (defun pop-input (parser)
   "Restore the previous expansion state."
   (when (zerop (parser-state-level parser))
+    ;; The parser will not |get-next| past the final |:dot| in a well-formed
+    ;; program, so this is a correct check.
     (Phase-2-error parser "Unexpected end of input."))
   (decf (parser-state-level parser))
   (setf (parser-state-name parser) (pop (parser-state-name-stack parser))
@@ -122,20 +124,18 @@ search is unsuccessful and the third argument is false, an error is signaled."
 
 (defun end-level (parser)
   "Do the right thing when the current token list is depleted."
-  (case (parser-state-mode parser)
-    ((:module)
-     (let ((next (pop (parser-state-next parser))))
-       (if (not (null next))
-           (let ((section (get-nth-section next)))
-             (setf (parser-state-text parser) (section-Pascal-part section)
-                   (parser-state-section parser) section))
-           (pop-input parser))))
-    ((:parametric-macro :normal-macro)
-     (when (eq (parser-state-mode parser) :parametric-macro)
-       (pop (parser-state-arguments parser)))
-     (pop-input parser))
-    ((:argument)
-     (pop-input parser))))
+  (let ((mode (parser-state-mode parser)))
+    (cond ((eq mode :module)
+           (let ((next (pop (parser-state-next parser))))
+             (if (not (null next))
+                 (let ((section (get-nth-section next)))
+                   (setf (parser-state-text parser) (section-Pascal-part section)
+                         (parser-state-section parser) section))
+                 (pop-input parser))))
+          (t
+           (when (eq (parser-state-mode parser) :parametric-macro)
+             (pop (parser-state-arguments parser)))
+           (pop-input parser)))))
 
 (defun scan-argument (parser identifier)
   "Read the argument for a parametric macro."
@@ -1176,6 +1176,8 @@ references are permitted in pointer types."
                  (cond ((token-matches-p token :left-parenthesis)
                         (parse-argument-part parser))
                        ((token-matches-p token :becomes)
+                        ;; This is an assignment to a routine name. We don't
+                        ;; bother checking that it is valid.
                         (parse-expression parser))
                        (t
                         (put-back-token parser token))))))
