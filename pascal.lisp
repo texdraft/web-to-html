@@ -22,6 +22,10 @@
     :type identifier
     :initarg :identifier
     :reader meaning-identifier)
+   (section-number
+    :type fixnum
+    :initarg :section-number
+    :reader meaning-section-number)
    (id
     :type string
     :reader meaning-id ; computed at initialization time

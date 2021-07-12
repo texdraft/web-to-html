@@ -38,12 +38,19 @@
 (defun install-meaning (parser identifier class-name &rest arguments)
   "Update the current environment by adding a new meaning for an identifier. No
 attempt is made to catch redefinition errors."
-  (let ((environment (parser-state-environment parser)))
+  (let ((environment (parser-state-environment parser))
+        ;; The |0| is a dummy value; it will be used only for standard
+        ;; identifiers, and Phase 3 will check the |standardp| slot to decide
+        ;; whether to look at |section-number| at all.
+        (section-number (if (parser-state-section parser)
+                            (section-number (parser-state-section parser))
+                            0)))
     (setf (gethash identifier (environment-meanings environment))
           (apply #'make-instance class-name
                                  :identifier identifier
                                  :environment environment
                                  :level (environment-depth environment)
+                                 :section-number section-number
                                  arguments))))
 
 (defun insert-meaning (parser meaning)
@@ -392,6 +399,7 @@ search is unsuccessful and the third argument is false, an error is signaled."
   (loop for n from 1 to (get-section-count) do
     (let ((section (get-nth-section n)))
       (unless (null (section-definition-part section))
+        (setf (parser-state-section parser) section)
         (scan-definition-part parser
                               n
                               (section-definition-part section))))))
