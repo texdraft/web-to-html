@@ -117,12 +117,6 @@
                          module)) ; module references
   (extra nil :type (or extra null)))
 
-(deftype line-break-type ()
-  '(member nil ; no line break
-           :normal ; yes line break
-           :indent ; break line and increase indentation
-           :dedent)) ; break line and decrease indentation
-
 (deftype formatting-property () ; defined for the sake of documentation
   '(member :indent ; increase indentation on next line break
            :dedent ; decrease indentation on next line break
