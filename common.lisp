@@ -169,6 +169,12 @@
        (string-count 256)
        (string-table (make-hash-table :test #'equal))
        (check-sum 271828))
+  (defun reset-string-pool ()
+    (setf strings (make-array maximum-strings)
+          string-count 256
+          string-table (make-hash-table :test #'equal)
+          check-sum 271828))
+
   (defun lookup-string (string)
     "Return the number for the given string. Doubled quotation marks within the
 string will have been reduced."
@@ -210,6 +216,12 @@ string will have been reduced."
        (section-count 0)
        (root nil) ; root of module tree
        (unnamed-module (make-module)))
+  (defun reset-modules/sections ()
+    (setf sections (make-array (+ maximum-sections 1))
+          section-count 0
+          root nil
+          unnamed-module (make-module)))
+
   (flet ((compare-strings (s_1 s_2)
            (let ((s_1-length (length s_1))
                  (s_2-length (length s_2))
@@ -315,6 +327,9 @@ will be added."
 
 ;;; Identifiers.
 (let ((symbols (make-hash-table :test #'equal)))
+  (defun reset-symbol-table ()
+    (setf symbols (make-hash-table :test #'equal)))
+
   (defun lookup-identifier (name)
     "Retrieve the global information about the identifier with the given name."
     (let ((identifier (gethash name symbols)))
@@ -328,13 +343,16 @@ will be added."
   (underlined-references (list) :type list) ; of section numbers
   (other-references (list) :type list)) ; of section numbers
 
+;; These tables are keyed on strings (the control text in an indexing
+;; command); the values are cross-reference-datum objects.
 (let ((Roman-index-entries (make-hash-table :test #'equal))
       (typewriter-index-entries (make-hash-table :test #'equal))
       (wildcard-index-entries (make-hash-table :test #'equal)))
-  ;; These tables are keyed on strings (the control text in an indexing
-  ;; command); the values are cross-reference-datum objects.
-  ;; Because indexing commands are processed in Phase 2, we need to be given the
-  ;; section number.
+  (defun reset-index ()
+    (setf Roman-index-entries (make-hash-table :test #'equal)
+          typewriter-index-entries (make-hash-table :test #'equal)
+          wildcard-index-entries (make-hash-table :test #'equal)))
+
   (defun index (type text section underlinedp)
     "Add a reference to an index entry."
     (let* ((table (ecase type
@@ -351,3 +369,12 @@ will be added."
       (if underlinedp
           (pushnew section (cross-reference-datum-underlined-references entry))
           (pushnew section (cross-reference-datum-other-references entry))))))
+
+;; Call this after running the phases on one WEB file, in order to process
+;; another file with a clean slate.
+(defun reset ()
+  "Reset the various semi-global data structures."
+  (reset-string-pool)
+  (reset-modules/sections)
+  (reset-symbol-table)
+  (reset-index))
