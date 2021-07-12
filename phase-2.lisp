@@ -1662,6 +1662,7 @@ expression."
     (identify-type "integer" t (make-instance 'subrange-type))
     (identify-type "real" t (make-instance 'subrange-type))
     (identify-type "boolean" t (make-instance 'enumeration-type))
+    ;; Remove the following expression for TeX.
     (identify-type "text"
                    t
                    (make-instance 'file-type
@@ -1749,7 +1750,7 @@ expression."
             "set"
             "then"
             "to"
-            ;; Remove the next line for TeX.
+            ;; Change the next line to |"mtype"| for TeX.
             "type"
             "until"
             "var"
