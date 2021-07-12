@@ -8,10 +8,11 @@
   (level 0 :type fixnum) ; level of expansion
   (environment (make-environment) :type environment)
   (arguments (list) :type list) ; stack of macro arguments
-  ;; The name slot is nil when a macro argument is being expanded.
+  ;; The |name| slot is nil when a macro argument is being expanded.
   (name nil :type (or identifier ; name of macro being expanded
                       module  ; name of module being expanded
                       null)) ; argument
+  ;; The |section| slot is nil when standard identifiers are installed.
   (section nil :type (or section null)) ; section being visited
   (text nil :type list) ; current source of tokens
   (mode :module :type (member :normal-macro
