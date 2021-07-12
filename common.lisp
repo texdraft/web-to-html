@@ -146,6 +146,23 @@
   (references (list) :type list)) ; of section numbers
 
 ;;; String pool maintenance.
+(let ((character-set (format nil " !\"#$%&'~
+                                  ()*+,-./~
+                                  01234567~
+                                  89:;<=>?~
+                                  @ABCDEFG~
+                                  HIJKLMNO~
+                                  PQRSTUVW~
+                                  XYZ[\\]^_~
+                                  `abcdefg~
+                                  hijklmno~
+                                  pqrstuvw~
+                                  xyz{|}~~")))
+  (defun xord (character)
+    "Compute the a character's ASCII code."
+    (+ (position character character-set)
+       #o40)))
+
 (let* ((maximum-strings 3000) ; this is the value of max_names in TANGLE
        (check-sum-prime #o3777777667)
        (strings (make-array maximum-strings))
@@ -156,7 +173,7 @@
     "Return the number for the given string. Doubled quotation marks within the
 string will have been reduced."
     (when (= (length string) 1)
-      (return-from lookup-string (char-code (schar string 0))))
+      (return-from lookup-string (xord (schar string 0))))
     (let ((number (gethash string string-table)))
       (unless number ; we are adding a new string
         (incf string-count)
@@ -174,8 +191,7 @@ string will have been reduced."
                      (decf check-sum check-sum-prime))))
             (increase-check-sum length)
             (loop for c across string do
-              ;; Note: This assumes ASCII or Unicode.
-              (increase-check-sum (char-code c))))))
+              (increase-check-sum (xord c))))))
       number))
 
   (defun get-string (number)
