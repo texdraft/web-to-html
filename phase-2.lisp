@@ -1076,8 +1076,7 @@ references are permitted in pointer types."
                        token (get-next parser)))
                (let ((names (list)))
                  (loop do (unless (is-free-identifier-p token)
-                            (expected-error parser
-                                            "an identifier"))
+                            (expected-error parser "an identifier"))
                           (push token names)
                           (setf token (get-next parser))
                        while (token-matches-p token :comma)
@@ -1085,10 +1084,8 @@ references are permitted in pointer types."
                  (cond ((token-matches-p token :colon)
                         (setf token (get-next parser))
                         (unless (is-free-identifier-p token)
-                          (expected-error parser
-                                          "a type identifier"))
-                        (let ((type (get-meaning parser
-                                                 (token-content token))))
+                          (expected-error parser "a type identifier"))
+                        (let ((type (get-meaning parser (token-content token))))
                           (loop for name-token in names do
                             (let ((name (token-content name-token)))
                               (install-meaning parser name
@@ -1096,8 +1093,7 @@ references are permitted in pointer types."
                                                :by-reference-p by-reference-p
                                                :type (type-type type))
                               (attach-meaning parser name-token :declaring)
-                              (push (get-meaning parser name)
-                                    parameters)))))
+                              (push (get-meaning parser name) parameters)))))
                        (t
                         (expected-error parser "a colon")))))
              (setf token (get-next parser))
