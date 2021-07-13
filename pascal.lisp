@@ -118,12 +118,12 @@ false if program-parameter-p is true.")))
     :type list ; of |parameter-meaning| objects
     :initarg :parameters
     :initform nil
-    :accessor routine-parameters)
+    :reader routine-parameters)
    (forwardp
     :type boolean
     :initarg :forwardp
     :initform nil
-    :accessor routine-forwardp
+    :reader routine-forwardp
     :documentation
       "True if the routine is known only from a forward declaration.")
    (forward-id

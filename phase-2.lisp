@@ -38,7 +38,8 @@
 
 (defun install-meaning (parser identifier class-name &rest arguments)
   "Update the current environment by adding a new meaning for an identifier. No
-attempt is made to catch redefinition errors."
+attempt is made to catch redefinition errors. The return value is the |meaning|
+object created."
   (let ((environment (parser-state-environment parser))
         ;; The |0| is a dummy value; it will be used only for standard
         ;; identifiers, and Phase 3 will check the |standardp| slot to decide
@@ -971,7 +972,19 @@ references are permitted in pointer types."
     (put-back-token parser token)))
 
 ;; <routine declaration part> ::= { <routine declaration> ; }
-;;
+(defun parse-routine-declarations (parser token)
+  "Parse the procedure and function declarations for a block."
+  (loop while (or (token-matches-p token "procedure")
+                  (token-matches-p token "function")) do
+    (parse-routine-declaration parser token)
+    (setf token (get-next parser))
+    (cond ((token-matches-p token :semicolon)
+           (attach-formatting token :line-break-after)
+           (setf token (get-next parser)))
+          (t
+           (expected-error parser "a semicolon"))))
+  (put-back-token parser token))
+
 ;; <routine declaration> ::= <procedure declaration> | <function declaration>
 ;;
 ;; <procedure declaration> ::= <procedure heading> <block>
@@ -982,129 +995,117 @@ references are permitted in pointer types."
 ;;
 ;; <function heading> ::=
 ;;   function <identifier> <parameter part> : <type identifier>
-;;
+(defun parse-routine-declaration (parser token)
+  (let ((procedurep (token-matches-p token "procedure")))
+    (setf token (get-next parser))
+    (unless (is-free-identifier-p token)
+      (expected-error parser "an identifier"))
+    (let* ((name-token token) ; saved for |attach-meaning|
+           (name (token-content name-token))
+           (parameters))
+      (setf token (get-next parser))
+      (begin-scope parser name)
+      (when (token-matches-p token :left-parenthesis)
+        (setf parameters (parse-parameter-part parser) ; updates the environment
+              token (get-next parser)))
+      (let ((result-type nil))
+        (unless procedurep
+          (unless (token-matches-p token :colon)
+            (expected-error parser "a colon"))
+          (setf token (get-next parser))
+          (unless (is-free-identifier-p token)
+            (expected-error parser "a type identifier"))
+          (attach-meaning parser token)
+          (add-use parser (token-content token))
+          (setf result-type (get-meaning parser (token-content token))
+                token (get-next parser)))
+        (unless (token-matches-p token :semicolon)
+          (expected-error parser "a semicolon"))
+        (attach-formatting token :indent)
+        (attach-formatting token :line-break-after)
+        (setf token (get-next parser))
+        (let ((forwardp (and (is-free-identifier-p token)
+                             (string= (identifier-name (token-content token))
+                                      "forward"))))
+          (if forwardp
+              (install-meaning parser name
+                               'routine-meaning
+                               :parameters parameters
+                               :result-type result-type
+                               :forwardp t)
+              (let ((meaning (get-meaning parser name t)))
+                (unless (and meaning
+                             (typep meaning 'routine-meaning)
+                             (routine-forwardp meaning))
+                  (setf meaning (install-meaning parser name
+                                                 'routine-meaning
+                                                 :parameters parameters
+                                                 :result-type result-type)))
+                (put-back-token parser token)
+                (loop for parameter in (routine-parameters meaning) do
+                  (insert-meaning parser parameter))
+                (parse-block parser)
+                (end-scope parser)
+                ;; The next statement is a mild hack. We couldn't install this
+                ;; routine's meaning in the outer scope, because we didn't know
+                ;; its parameters until calling |parse-parameters|. And the
+                ;; |end-scope| right above this comment causes the routine's
+                ;; meaning to be forgotten, along with the parameters. Therefore
+                ;; we must add its meaning again, so that it is visible to the
+                ;; rest of the Pascal program. An alternative would be to make
+                ;; it possible to install meanings at an level outside the
+                ;; current one, but such a facility would be useful only for
+                ;; this purpose.
+                (insert-meaning parser meaning)))
+          (attach-meaning parser name-token (if forwardp
+                                                :declaring
+                                                :defining)))))))
+
 ;; <parameter part> ::= <empty>
 ;;                    | <parameter section> { ; <parameter section> }
 ;;
 ;; <parameter section> ::= <parameter group> | var <parameter group>
 ;;
 ;; <parameter group> ::= <identifier> { , <identifier> } : <type identifier>
-(defun parse-routine-declarations (parser token)
-  "Parse the procedure and function declarations for a block."
-  (labels ((finish-routine-declaration (name name-token meaning procedurep)
-             (let ((result-type nil))
-               (unless procedurep
-                 (unless (token-matches-p token :colon)
-                   (expected-error parser "a colon"))
-                 (setf token (get-next parser))
-                 (unless (is-free-identifier-p token)
-                   (expected-error parser "a type identifier"))
-                 (attach-meaning parser token)
-                 (add-use parser (token-content token))
-                 (setf result-type (get-meaning parser (token-content token))
+(defun parse-parameter-part (parser)
+  (let ((token (get-next parser))
+        (parameters (list)))
+    (loop do (let ((by-reference-p nil))
+               (when (token-matches-p token "var")
+                 (setf by-reference-p t
                        token (get-next parser)))
-               (unless (token-matches-p token :semicolon)
-                 (expected-error parser "a semicolon"))
-               (attach-formatting token :indent)
-               (attach-formatting token :line-break-after)
-               (setf token (get-next parser))
-               (let ((forwardp nil))
-                 (when (and (is-free-identifier-p token)
-                            (string= (identifier-name (token-content token))
-                                     "forward"))
-                   (setf forwardp t))
-                 (cond (forwardp
-                        (setf (routine-forwardp meaning) t))
+               (let ((names (list)))
+                 (loop do (unless (is-free-identifier-p token)
+                            (expected-error parser
+                                            "an identifier"))
+                          (push token names)
+                          (setf token (get-next parser))
+                       while (token-matches-p token :comma)
+                       do (setf token (get-next parser)))
+                 (cond ((token-matches-p token :colon)
+                        (setf token (get-next parser))
+                        (unless (is-free-identifier-p token)
+                          (expected-error parser
+                                          "a type identifier"))
+                        (let ((type (get-meaning parser
+                                                 (token-content token))))
+                          (loop for name-token in names do
+                            (let ((name (token-content name-token)))
+                              (install-meaning parser name
+                                               'parameter-meaning
+                                               :by-reference-p by-reference-p
+                                               :type (type-type type))
+                              (attach-meaning parser name-token :declaring)
+                              (push (get-meaning parser name)
+                                    parameters)))))
                        (t
-                        (when (routine-forwardp meaning)
-                          (begin-scope parser name)
-                          (loop for parameter in (routine-parameters meaning)
-                                do (insert-meaning parser parameter)))
-                        (put-back-token parser token)
-                        (parse-block parser)
-                        (when (routine-forwardp meaning)
-                          (end-scope parser))))
-                 (attach-meaning parser name-token (if forwardp
-                                                       :declaring
-                                                       :defining))))
-             (setf token (get-next parser)))
-           (parse-parameter-part ()
+                        (expected-error parser "a colon")))))
              (setf token (get-next parser))
-             (let ((parameters (list)))
-               (loop do (let ((by-reference-p nil))
-                          (when (token-matches-p token "var")
-                            (setf by-reference-p t
-                                  token (get-next parser)))
-                          (let ((names (list)))
-                            (loop do (unless (is-free-identifier-p token)
-                                       (expected-error parser
-                                                       "an identifier"))
-                                     (push token names)
-                                     (setf token (get-next parser))
-                                  while (token-matches-p token :comma)
-                                  do (setf token (get-next parser)))
-                            (cond ((token-matches-p token :colon)
-                                   (setf token (get-next parser))
-                                   (unless (is-free-identifier-p token)
-                                     (expected-error parser
-                                                     "a type identifier"))
-                                   (let ((type (get-meaning parser
-                                                            (token-content token))))
-                                     (loop for name-token in names do
-                                       (let ((name (token-content name-token)))
-                                         (install-meaning parser name
-                                                          'parameter-meaning
-                                                          :by-reference-p by-reference-p
-                                                          :type (type-type type))
-                                         (attach-meaning parser
-                                                         name-token
-                                                         :declaring)
-                                         (push (get-meaning parser name)
-                                               parameters)))))
-                                  (t
-                                   (expected-error parser "a colon")))))
-                        (setf token (get-next parser))
-                     while (token-matches-p token :semicolon)
-                     do (setf token (get-next parser)))
-               (unless (token-matches-p token :right-parenthesis)
-                 (expected-error parser "a right parenthesis"))
-               parameters))
-           (parse-routine-declaration ()
-             (let ((procedurep (token-matches-p token "procedure")))
-               (setf token (get-next parser))
-               (cond ((is-free-identifier-p token)
-                      (let* ((name-token token) ; saved for |attach-meaning|
-                             (name (token-content name-token))
-                             (meaning (get-meaning parser name t)))
-                        (unless (and meaning
-                                     (typep meaning 'routine-meaning)
-                                     (= (meaning-level meaning)
-                                        (environment-depth (parser-state-environment parser))))
-                          (install-meaning parser name
-                                           'routine-meaning)
-                          (setf meaning (get-meaning parser name)))
-                        (begin-scope parser name)
-                        (setf token (get-next parser))
-                        (when (token-matches-p token :left-parenthesis)
-                          (setf (routine-parameters meaning)
-                                (parse-parameter-part))
-                          (setf token (get-next parser)))
-                        (finish-routine-declaration name
-                                                    name-token
-                                                    meaning
-                                                    procedurep))
-                      (end-scope parser))
-                     (t
-                      (expected-error parser "an identifier"))))))
-    (loop while (or (token-matches-p token "procedure")
-                    (token-matches-p token "function")) do
-      (parse-routine-declaration)
-      (cond ((token-matches-p token :semicolon)
-             (attach-formatting token :line-break-after)
-             (setf token (get-next parser)))
-            (t
-             (expected-error parser "a semicolon"))))
-    (put-back-token parser token)))
+          while (token-matches-p token :semicolon)
+          do (setf token (get-next parser)))
+    (unless (token-matches-p token :right-parenthesis)
+      (expected-error parser "a right parenthesis"))
+    parameters))
 
 ;; <compound statement> ::= begin <statement> { ; <statement> } end
 (defun parse-compound-statement (parser)
