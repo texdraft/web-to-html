@@ -75,6 +75,33 @@ search is unsuccessful and the third argument is false, an error is signaled."
                     (find-meaning (environment-outer environment))))))
     (find-meaning (parser-state-environment parser))))
 
+(defun add-use (parser identifier &optional writtenp)
+  "Update the current section's |identifier-uses| slot to reflect the use of
+some identifier, if appropriate."
+  (let ((meaning (get-meaning parser identifier)))
+    ;; We don't add a |use-record| if the definition occurs in the same section
+    ;; as the use, or if the identifier is predefined.
+    (when (and (/= (meaning-section-number meaning)
+                   (section-number (parser-state-section parser)))
+               (not (meaning-standardp meaning)))
+      (let* ((section (parser-state-section parser))
+             (use-record-cell (assoc identifier
+                                     (section-identifier-uses section))))
+        (unless use-record-cell
+          (setf use-record-cell (cons identifier (list)))
+          (push use-record-cell (section-identifier-uses section)))
+        (let ((found (find meaning (cdr use-record-cell))))
+          (cond ((and found
+                      (not (use-record-writtenp found))
+                      writtenp)
+                 ;; We will update the |use-record| to reflect the mutation
+                 ;; status of some identifier, if it changes.
+                 (setf (use-record-writtenp found) t))
+                (t
+                 (pushnew (make-use-record :meaning meaning
+                                           :writtenp writtenp)
+                          (cdr use-record-cell)))))))))
+
 (defun get-label (parser value)
   "Find a label object, given its value."
   (labels ((find-label (environment)
@@ -227,11 +254,11 @@ search is unsuccessful and the third argument is false, an error is signaled."
               (get-next parser))
              ((:identifier)
               (let* ((identifier-token token)
-                     (meaning (get-meaning parser
-                                           (token-content identifier-token)
-                                           t)))
+                     (identifier (token-content identifier-token))
+                     (meaning (get-meaning parser identifier t)))
                 (cond ((and meaning (typep meaning 'macro-meaning))
                        (attach-meaning parser token)
+                       (add-use parser identifier)
                        (let ((parametricp (macro-parametricp meaning)))
                          (when parametricp
                            ;; See section 90 of TANGLE. This is necessary to
@@ -316,7 +343,8 @@ search is unsuccessful and the third argument is false, an error is signaled."
                                    (unless (and (typep meaning 'constant-meaning)
                                                 (constant-numeric-macro-p meaning))
                                      (bad))
-                                   (add-in (constant-value meaning))))
+                                   (add-in (constant-value meaning))
+                                   (add-use parser (token-content token))))
                                 ((:minus)
                                  (setf next-sign (- next-sign)))
                                 ((:plus)
@@ -893,6 +921,7 @@ references are permitted in pointer types."
                 (typep (get-meaning parser (token-content token))
                        'type-meaning))
            (attach-meaning parser token)
+           (add-use parser (token-content token))
            (type-type (get-meaning parser (token-content token))))
           (t
            (put-back-token parser token)
@@ -971,6 +1000,7 @@ references are permitted in pointer types."
                  (unless (is-free-identifier-p token)
                    (expected-error parser "a type identifier"))
                  (attach-meaning parser token)
+                 (add-use parser (token-content token))
                  (setf result-type (get-meaning parser (token-content token))
                        token (get-next parser)))
                (unless (token-matches-p token :semicolon)
@@ -1183,14 +1213,20 @@ references are permitted in pointer types."
                (do-weird-call parser meaning)
                (let ((token (get-next parser)))
                  (cond ((token-matches-p token :left-parenthesis)
+                        (add-use parser identifier)
                         (parse-argument-part parser))
                        ((token-matches-p token :becomes)
                         ;; This is an assignment to a routine name. We don't
                         ;; bother checking that it is valid.
+                        (add-use parser identifier t)
                         (parse-expression parser))
                        (t
+                        (add-use parser identifier)
                         (put-back-token parser token))))))
           (t
+           ;; Note that |parse-variable| calls |add-use| as well, but it will
+           ;; have no effect.
+           (add-use parser identifier t)
            (put-back-token parser identifier-token)
            (parse-variable parser)
            (let ((token (get-next parser)))
@@ -1294,6 +1330,7 @@ references are permitted in pointer types."
   "Parse a for statement."
   (let ((token (get-next parser)))
     (cond ((is-free-identifier-p token)
+           (add-use parser (token-content token))
            (attach-meaning parser token)
            (setf token (get-next parser))
            (cond ((token-matches-p token :becomes)
@@ -1359,7 +1396,8 @@ references are permitted in pointer types."
                (Phase-2-error parser "Bad label."))
              (attach-meaning parser token)
              (add-in (constant-value meaning))
-             (mark-label)))
+             (mark-label)
+             (add-use parser (token-content token))))
           ((:minus)
            (setf next-sign (- next-sign))
            (mark-label))
@@ -1422,6 +1460,7 @@ references are permitted in pointer types."
 value is the type of the variable, which is used only by parse-with-statement."
   (let* ((token (get-next parser))
          (meaning (get-meaning parser (token-content token))))
+    (add-use parser (token-content token))
     (attach-meaning parser token)
     (unless (typep meaning '(or variable-meaning field-meaning))
       (expected-error parser "a variable"))

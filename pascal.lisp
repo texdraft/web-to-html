@@ -15,6 +15,7 @@
    (standardp
     :type boolean
     :initarg :standardp
+    :initform nil
     :reader meaning-standardp
     :documentation
       "True if this identifier is predefined in Pascal.")

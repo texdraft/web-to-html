@@ -21,7 +21,11 @@
   (TeX-part nil :type list) ; list of tokens
   (definition-part nil :type list) ; ditto
   (Pascal-part nil :type list) ; ditto
-  (module nil :type (or module null))) ; nil if unnamed
+  (module nil :type (or module null)) ; nil if unnamed
+  ;; The |identifier-uses| slot holds an association list, pairing |identifier|
+  ;; (defined below) objects with lists of |use-record| (also defined below)
+  ;; objects.
+  (identifier-uses (list) :type list))
 
 (deftype token-type-type ()
   '(member nil ; for malformed text
@@ -132,19 +136,11 @@
   ;; The first three slots are used only for |:identifier| tokens.
   (definingp nil :type boolean) ; is this a definition?
   (declaringp nil :type boolean) ; is this a declaration?
-  (meanings (list) :type list) ; list of meaning objects
+  (meanings (list) :type list) ; list of |meaning| (defined in pascal.lisp)
+                               ; objects
   (label-status nil :type (or boolean
                               label)) ; defined in pascal.lisp
   (formatting-properties (list) :type list)) ; of |formatting-property| keywords
-
-(defstruct identifier
-  "Global information about a name."
-  (name nil :type string)
-  ;; The following slot exists only for TeX and Metafont's mtype.
-  (synonym nil :type (or string null))
-  (reservedp nil :type boolean) ; is this identifier to be treated as a reserved word?
-  (underlined-references (list) :type list) ; of section numbers
-  (references (list) :type list)) ; of section numbers
 
 ;;; String pool maintenance.
 (let ((character-set (format nil " !\"#$%&'~
@@ -327,6 +323,20 @@ will be added."
     section-count))
 
 ;;; Identifiers.
+(defstruct identifier
+  "Global information about a name."
+  (name nil :type string)
+  ;; The following slot exists only for TeX and Metafont's mtype.
+  (synonym nil :type (or string null))
+  (reservedp nil :type boolean) ; is this identifier to be treated as a reserved word?
+  (underlined-references (list) :type list) ; of section numbers
+  (references (list) :type list)) ; of section numbers
+
+(defstruct use-record
+  "Describes how an identifier is used in a section."
+  (meaning nil :type meaning) ; defined in pascal.lisp
+  (writtenp nil :type boolean)) ; was it modified?
+
 (let ((symbols (make-hash-table :test #'equal)))
   (defun reset-symbol-table ()
     (setf symbols (make-hash-table :test #'equal)))
