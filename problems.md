@@ -55,3 +55,26 @@ My initial parser followed Pascal's expression syntax closely and did not accept
 ## BREAKPOINT
 
 In TeX's `debug_help`, the pragmatic comment `@{'BREAKPOINT'@}` appears. The parser ends up seeing a random, unexpected `:Pascal-string` in the middle of a compound statement. As with the compiler directives, I suggest changing it to `@={'BREAKPOINT'}@>`.
+
+## Online graphic output
+
+In section 566 of Metafont, the following code occurs:
+
+```
+@{@+@!screen_pixel:array[screen_row,screen_col] of pixel_color@t; @>@}
+```
+
+The semicolon in this “declaration” (which is hidden from the Pascal compiler in the `TANGLE`d output) is faked by appearing in `@t...@>`, in order to prevent a line break. My parser doesn't see the semicolon and complains when it finds `screen_started` (the next global variable). The solution is to use a “real” semicolon in place of the verbatim TeX text.
+
+## t_of_the_way
+
+Metafont's `t_of_the_way` macro is defined like this:
+
+```
+@d t_of_the_way_end(#)==#,t@=)@>
+@d t_of_the_way(#)==#-take_fraction@=(@>#-t_of_the_way_end
+```
+
+If the parentheses weren't in `@=...@>`, `TANGLE` would not process the program correctly, since it expects all replacement texts to have balanced parentheses. My program does not place such a restriction; although this is definitely a bug, it means that we can get away with writing the parentheses literally.
+
+An alternative, which would be used if I decide to require balanced parentheses, is to make verbatim Pascal text be visible to the parser, by a mechanism similar to that used with meta-comments: add `:begin-verbatim-Pascal` and `:end-verbatim-Pascal` token types and treat what comes between them as regular Pascal text; then in `phase-2.lisp` have `get-next` skip the delimiting tokens. However, additional state would have to be added to the lexer in order to react to `@>` correctly in such a situation. (On the other hand, the text could be collected first and then tokenized, as with module names.)
