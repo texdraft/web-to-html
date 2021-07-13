@@ -108,7 +108,8 @@
   (origin nil :type origin)
   (content nil :type (or null ; punctuators, |:begin-Pascal| for unnamed
                               ; modules, |:begin-comment|, |:end-comment|,
-                              ; |:begin-inline-code, |:end-inline-code|, |:dollar-sign|
+                              ; |:begin-inline-code, |:end-inline-code|,
+                              ; |:dollar-sign|
                          integer ; integer literals, string number for
                                  ; |:WEB-string|, number for |:long-distance|
                          string ; control text, |:Pascal-string|, |:TeX-portion|
