@@ -1701,7 +1701,6 @@ expression."
     (identify-type "integer" t (make-instance 'subrange-type))
     (identify-type "real" t (make-instance 'subrange-type))
     (identify-type "boolean" t (make-instance 'enumeration-type))
-    ;; Remove the following expression for TeX.
     (identify-type "text"
                    t
                    (make-instance 'file-type
@@ -1800,7 +1799,7 @@ expression."
   "Parse and annotate the user's program."
   (install-reserved-words)
   (let ((parser (make-parser-state)))
-    (install-macros parser)
     (install-standard-identifiers parser)
+    (install-macros parser)
     (begin-module parser (get-unnamed))
     (parse-program parser)))
