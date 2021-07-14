@@ -40,20 +40,23 @@
   "Update the current environment by adding a new meaning for an identifier. No
 attempt is made to catch redefinition errors. The return value is the |meaning|
 object created."
-  (let ((environment (parser-state-environment parser))
-        ;; The |0| is a dummy value; it will be used only for standard
-        ;; identifiers, and Phase 3 will check the |standardp| slot to decide
-        ;; whether to look at |section-number| at all.
-        (section-number (if (parser-state-section parser)
-                            (section-number (parser-state-section parser))
-                            0)))
-    (setf (gethash identifier (environment-meanings environment))
-          (apply #'make-instance class-name
-                                 :identifier identifier
-                                 :environment environment
-                                 :level (environment-depth environment)
-                                 :section-number section-number
-                                 arguments))))
+  (let* ((environment (parser-state-environment parser))
+         ;; The |0| is a dummy value; it will be used only for standard
+         ;; identifiers, and Phase 3 will check the |standardp| slot to decide
+         ;; whether to look at |section-number| at all.
+         (section-number (if (parser-state-section parser)
+                             (section-number (parser-state-section parser))
+                             0))
+         (meaning (apply #'make-instance class-name
+                                         :identifier identifier
+                                         :environment environment
+                                         :level (environment-depth environment)
+                                         :section-number section-number
+                                         arguments)))
+    (if (identifier-only-meaning identifier)
+        (setf (identifier-only-meaning identifier) t)
+        (setf (identifier-only-meaning identifier) meaning))
+    (setf (gethash identifier (environment-meanings environment)) meaning)))
 
 (defun insert-meaning (parser meaning)
   "Update the current environment by adding an existing meaning."

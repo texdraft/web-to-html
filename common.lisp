@@ -329,6 +329,10 @@ will be added."
 (defstruct identifier
   "Global information about a name."
   (name nil :type string)
+  ;; The |only-meaning| slot is initially nil. If an identifier is given only a single
+  ;; meaning in the whole of Phase 2, then |only-meaning| will hold it; if the identifier
+  ;; has multiple meanings, then |only-meaning| will be |t|.
+  (only-meaning nil :type (or boolean meaning))
   ;; The following slot exists only for TeX and Metafont's mtype.
   (synonym nil :type (or string null))
   (reservedp nil :type boolean) ; is this identifier to be treated as a reserved word?
@@ -343,6 +347,13 @@ will be added."
 (let ((symbols (make-hash-table :test #'equal)))
   (defun reset-symbol-table ()
     (setf symbols (make-hash-table :test #'equal)))
+
+  (defun map-identifiers (function)
+    "Call a function once for every identifier."
+    (maphash (lambda (key value)
+               (declare (ignore key))
+               (funcall function value))
+             symbols))
 
   (defun lookup-identifier (name)
     "Retrieve the global information about the identifier with the given name."
