@@ -297,6 +297,12 @@ some identifier, if appropriate."
   "Place a token back in the input stream, to be read again."
   (push token (parser-state-backed-up parser)))
 
+;; It would be nicer if macros could be installed in Phase 1. But this is
+;; impossible with the current organization of the program, because macros are
+;; integrated into the |meaning| hierarchy and |meaning|/environment management
+;; is tied to the parser. Also, installing macros before the standard
+;; identifiers is problematic (see commit 26a34ce).
+;;
 ;; I'd recommend not reading this code.
 (defun scan-definition-part (parser section-number text)
   (let ((token))
