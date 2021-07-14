@@ -954,9 +954,14 @@ references are permitted in pointer types."
                (let ((type (parse-type parser nil)))
                  (loop for name in names
                        as identifier := (token-content name)
-                       do (install-meaning parser identifier
-                                           'variable-meaning
-                                           :type type)
+                       do (let ((meaning (get-meaning parser identifier t)))
+                            (if (and meaning
+                                     (typep meaning 'parameter-meaning)
+                                     (parameter-program-parameter-p meaning))
+                                (setf (variable-type meaning) type)
+                                (install-meaning parser identifier
+                                                 'variable-meaning
+                                                 :type type)))
                           (attach-meaning parser name :declaring)))
                (setf token (get-next parser)))
               (t
