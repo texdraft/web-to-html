@@ -101,6 +101,9 @@
   (line 0 :type fixnum)
   (from-change-file-p nil :type boolean))
 
+;; We destructure floating-point literals for two reasons:
+;;         (1) It avoids any issues with precision.
+;;         (2) It makes formatting the number easier in Phase 3. 
 (defstruct floating-point-literal
   (whole-part nil :type integer)
   (fractional-part nil :type integer)
