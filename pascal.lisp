@@ -125,7 +125,7 @@ false if program-parameter-p is true.")))
     :initform nil
     :reader routine-forwardp
     :documentation
-      "True if the routine is known only from a forward declaration.")
+      "True if the routine is known from a forward declaration.")
    (forward-id
     :type string
     :reader routine-forward-id
