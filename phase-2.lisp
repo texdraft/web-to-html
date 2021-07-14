@@ -1704,16 +1704,15 @@ expression."
              (identify name
                        'routine-meaning
                        :weirdp t)))
-    (identify-type "char" t (make-instance 'subrange-type))
     (identify-type "integer" t (make-instance 'subrange-type))
     (identify-type "real" t (make-instance 'subrange-type))
     (identify-type "boolean" t (make-instance 'enumeration-type))
-    (identify-type "text"
-                   t
-                   (make-instance 'file-type
-                                  :packedp nil
-                                  :element-type (get-meaning parser
-                                                             (lookup-identifier "char"))))
+    (let ((char (identify-type "char" t (make-instance 'subrange-type))))
+      (identify-type "text"
+                     t
+                     (make-instance 'file-type
+                                    :packedp nil
+                                    :element-type char)))
     (identify "true"
               'enumerator-meaning
               :standardp t)
