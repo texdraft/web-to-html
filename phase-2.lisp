@@ -1063,6 +1063,9 @@ references are permitted in pointer types."
                 ;; it possible to install meanings at a level outside the
                 ;; current one, but such a facility would be useful only for
                 ;; this purpose.
+                ;; Note also that this |insert-meaning| call isn't guarded by
+                ;; tests on the meaning's attributes. This is fine; if the
+                ;; meaning already existed, it will be redundantly added.
                 (insert-meaning parser meaning)))
           (attach-meaning parser name-token (if forwardp
                                                 :declaring
