@@ -1036,7 +1036,9 @@ references are permitted in pointer types."
               (let ((meaning (get-meaning parser name t)))
                 (unless (and meaning
                              (typep meaning 'routine-meaning)
-                             (routine-forwardp meaning))
+                             (routine-forwardp meaning)
+                             (= (meaning-level meaning)
+                                (environment-depth (parser-state-environment parser))))
                   (setf meaning (install-meaning parser name
                                                  'routine-meaning
                                                  :parameters parameters
@@ -1053,7 +1055,7 @@ references are permitted in pointer types."
                 ;; meaning to be forgotten, along with the parameters. Therefore
                 ;; we must add its meaning again, so that it is visible to the
                 ;; rest of the Pascal program. An alternative would be to make
-                ;; it possible to install meanings at an level outside the
+                ;; it possible to install meanings at a level outside the
                 ;; current one, but such a facility would be useful only for
                 ;; this purpose.
                 (insert-meaning parser meaning)))
